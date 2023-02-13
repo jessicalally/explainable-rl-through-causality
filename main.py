@@ -1,22 +1,25 @@
-import environments.cartpole as c
+from action_influence_model import ActionInfluenceModel
+from environments.cartpole import Cartpole
 import evaluation
 from rl_algorithms.q_learning import QLearning
 import gym
 
-state_space = 4
-action_space = 2
-env = gym.make('CartPole-v1')
+# Choose which environment to use
+environment = Cartpole()
 
-# TODO: remove file eventually, as we will move scm stuff to separate file
-# Just to fix circular import currently
-
-q_learning = QLearning(env, state_space, action_space)
+# Choose which RL algorithm to use 
+q_learning = QLearning(environment.env, environment.state_space, environment.action_space)
 q_table, data_set, bins = q_learning.train()
-trained_structural_equations = c.train_scm(data_set)
 
-# TODO: this should be some sort of wrapper on a generalised trained rl agent
-test_data = q_learning.generate_test_data(env, q_table)
-accuracy = evaluation.task_prediction(test_data, trained_structural_equations)
+# Initialise action influence model
+action_influence_model = ActionInfluenceModel(environment.causal_graph, data_set)
+action_influence_model.train()
+
+# Evaluation
+test_data = q_learning.generate_test_data(environment.env, q_table)
+accuracy = evaluation.task_prediction(test_data, action_influence_model)
 print("Accuracy="+str(accuracy))
-fidelity = evaluation.evaluate_fidelity(test_data, trained_structural_equations)
+fidelity = evaluation.evaluate_fidelity(test_data, action_influence_model)
 print("Fidelity="+str(fidelity))
+
+# TODO: processing explanations

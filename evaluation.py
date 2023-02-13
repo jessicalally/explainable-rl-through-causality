@@ -1,5 +1,3 @@
-import environments.cartpole as c # TODO: split structural equation work into new file
-
 # Runs the trained RL agent to generate test data over x timesteps, then 
 # takes y datapoints randomly to form the test data
 # def generate_test_data(trained_rl_agent):
@@ -24,7 +22,9 @@ import environments.cartpole as c # TODO: split structural equation work into ne
 # Task prediction method from Madumal et al.
 # TODO: need to be careful between discrete and continuous states, since we're
 # learning on discrete bins
-def task_prediction(test_data, trained_structural_equations):
+def task_prediction(test_data, action_influence_model):
+    # TODO: we can refactor this to hide the trained structural equations
+    trained_structural_equations = action_influence_model.structural_equations
     num_correct_action_predictions = 0
     print(len(test_data))
 
@@ -37,7 +37,7 @@ def task_prediction(test_data, trained_structural_equations):
 
         # Task Prediction method from Madumal et al.
         for key in trained_structural_equations:
-            predict_next_states = c.predict_from_scm(trained_structural_equations, state)
+            predict_next_states = action_influence_model.predict_from_scm(trained_structural_equations, state)
             predicted_value = predict_next_states[key]
             print(predicted_value)
             actual_value = next_state[key[0]]
@@ -62,7 +62,9 @@ def task_prediction(test_data, trained_structural_equations):
 
 
 # Fidelity: Measures the prediction accuracy of the trained causal model
-def evaluate_fidelity(test_data, trained_structural_equations):
+def evaluate_fidelity(test_data, action_influence_model):
+    trained_structural_equations = action_influence_model.structural_equations
+
     # Evaluates how accurately the causal model predicts the chosen action
     # TODO: we need to be able to predict actions directly from the model to 
     # do this 
@@ -75,7 +77,7 @@ def evaluate_fidelity(test_data, trained_structural_equations):
         print("i")
         (state, action, next_state) = test_data[i]
 
-        predicted_next_states = c.predict_from_scm(
+        predicted_next_states = action_influence_model.predict_from_scm(
             trained_structural_equations, 
             state
         )
