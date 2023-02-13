@@ -25,14 +25,4 @@ class Cartpole:
             self.causal_graph.add_edge(edge[0], edge[1], action=1) # Push cart to right
 
         self.action_set = (0, 1) # 0 = push cart to left, 1 = push cart to right
-
-        # Alternative graph
-        # causal_graph2 = np.array([
-        #     [0, 0, 0, 0], # 0 = cart position
-        #     [1, 0, 0, 0], # 1 = cart velocity
-        #     [0, 0, 0, 0], # 2 = pole angle
-        #     [0, 0, 1, 0], # 3 = pole angular velocity
-        # ])
-
-# num_episodes = 300
-# time_frame = 500 # Max number of steps per episodes
+        
