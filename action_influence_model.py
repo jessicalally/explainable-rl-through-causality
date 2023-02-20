@@ -3,8 +3,9 @@ import numpy as np
 import pandas as pd
 
 class ActionInfluenceModel:
-    def __init__(self, causal_graph, data_set):
+    def __init__(self, causal_graph, action_matrix, data_set):
         self.causal_graph = causal_graph
+        self.action_matrix = action_matrix
         self.structural_equations = self._initialise_structural_equations(data_set)
 
     def _initialise_structural_equations(self, data_set):
@@ -28,17 +29,16 @@ class ActionInfluenceModel:
         unique_functions = {}
 
         for edge in self.causal_graph.edges():
-            for preds in self.causal_graph.predecessors(edge[1]):
-                node = edge[1]
-                if (node, 0) not in unique_functions:
-                    unique_functions[(node, 0)] = set()
-                
-                if (node, 1) not in unique_functions:
-                    unique_functions[(node, 1)] = set()
+            node = edge[1]
 
-                # Between every node and its predecessor we have L and R actions
-                unique_functions[(node, 0)].add(preds)
-                unique_functions[(node, 1)].add(preds)
+            for predecessor in self.causal_graph.predecessors(edge[1]):
+                actions_on_edge = self.action_matrix[predecessor][node]
+
+                for action in actions_on_edge:
+                    if (node, action) not in unique_functions:
+                        unique_functions[(node, action)] = set()
+
+                    unique_functions[(node, action)].add(predecessor)
 
         print(unique_functions)
 
@@ -84,24 +84,16 @@ class ActionInfluenceModel:
                 action_influence_dataset[action]['state'].append(state_set[idx])
                 action_influence_dataset[action]['next_state'].append(next_state_set[idx])
 
-        return action_influence_dataset                                                               
+        return action_influence_dataset          
 
     def predict_from_scm_given_action(self, structural_equations, s, a):
-        predicted_state = [0, 0, 0, 0]
-        nodes = [0, 1, 2, 3]
+        nodes = self.causal_graph.nodes
+        predicted_state = [0] * len(nodes)
 
         for node in nodes:
             key = (node, a)
-            x_data = []
-
-            if key[0] == 0:
-                x_data = s[[0, 1]]
-            elif key[0] == 1:
-                x_data = [s[1]]
-            elif key[0] == 2:
-                x_data = s[[2, 3]]
-            elif key[0] == 3:
-                x_data = [s[3]]
+            predecessors = self.causal_graph.predecessors(node)
+            x_data = s[predecessors]
 
             pred = structural_equations[key]['function'].predict(input_fn=self.get_predict_fn(x_data,                          
                         num_epochs=1,                          
@@ -117,15 +109,9 @@ class ActionInfluenceModel:
         predict_y = {}
 
         for key in structural_equations:
-            x_data = []
-            if key[0] == 0:
-                x_data = s[[0, 1]]
-            elif key[0] == 1:
-                x_data = [s[1]]
-            elif key[0] == 2:
-                x_data = s[[2, 3]]
-            elif key[0] == 3:
-                x_data = [s[3]]
+            node = key[0]
+            predecessors = self.causal_graph.predecessors(node)
+            x_data = s[predecessors]
 
             pred = structural_equations[key]['function'].predict(input_fn=self.get_predict_fn(x_data,                          
                     num_epochs=1,                          
@@ -138,7 +124,6 @@ class ActionInfluenceModel:
 
     def process_explanations(self, structural_equations, state_set, action_set, next_state_set):
         print('Processing explanations...')
-        
 
         # for agent_step in range(1, len(state_set) + 1, 1000):
         # print(str(agent_step) + "/" + str(len(state_set)))

@@ -12,7 +12,11 @@ q_learning = QLearning(environment.env, environment.state_space, environment.act
 q_table, data_set, bins = q_learning.train()
 
 # Initialise action influence model
-action_influence_model = ActionInfluenceModel(environment.causal_graph, data_set)
+action_influence_model = ActionInfluenceModel(
+    environment.causal_graph,
+    environment.action_matrix,
+    data_set
+)
 action_influence_model.train()
 
 # Evaluation
