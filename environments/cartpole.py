@@ -19,10 +19,17 @@ class Cartpole:
             [0, 0, 1, 1], # 3 = pole angular velocity
         ]), create_using=nx.MultiDiGraph())
 
+        self.action_matrix = np.array([
+            [[0,1], [0,1], [0,1], [0,1]],
+            [[0,1], [0,1], [0,1], [0,1]],
+            [[0,1], [0,1], [0,1], [0,1]],
+            [[0,1], [0,1], [0,1], [0,1]],
+        ])    
+
         for edge in self.causal_graph.edges():
             self.causal_graph.remove_edge(edge[0], edge[1])
             self.causal_graph.add_edge(edge[0], edge[1], action=0) # Push cart to left
             self.causal_graph.add_edge(edge[0], edge[1], action=1) # Push cart to right
 
         self.action_set = (0, 1) # 0 = push cart to left, 1 = push cart to right
-        
+
