@@ -109,3 +109,35 @@ class QLearning(RLAgent):
         print('Finished generating Q-learning test data...')
 
         return test_data
+
+    def generate_data_for_causal_discovery(self, env, q_table, episodes = 1000):
+        data = []
+
+        print('Generating Q-learning data for causal discovery...')
+        steps = 0
+
+        for _ in range(episodes):
+            steps += 1 
+            # env.reset() => initial observation
+            current_observation, _ = self.env.reset()
+            current_state = self.Discrete(current_observation, self.bins)
+        
+            done = False
+
+            while not done:             
+                # Pick best action from trained q table
+                action = np.argmax(self.q_table[current_state])
+
+                next_observation, _, done, _, _ = self.env.step(action)
+                next_state = self.Discrete(next_observation, self.bins)
+
+                datapoint = np.concatenate((current_observation, np.array(action), next_observation), axis=None)
+                data.append(datapoint)
+
+                # Update state
+                current_state = next_state
+                current_observation = next_observation
+        
+        print('Finished generating Q-learning data for causal discovery...')
+
+        return data

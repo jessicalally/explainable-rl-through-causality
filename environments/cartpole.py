@@ -12,22 +12,24 @@ class Cartpole:
         self.state_space = 4
         self.action_space = 2
         self.env = gym.make('CartPole-v1')
-        self.causal_graph = nx.from_numpy_matrix(np.array([
+        
+        causal_graph = nx.from_numpy_matrix(np.array([
             [1, 0, 0, 0], # 0 = cart position
             [1, 1, 0, 0], # 1 = cart velocity
             [0, 0, 1, 0], # 2 = pole angle
             [0, 0, 1, 1], # 3 = pole angular velocity
         ]), create_using=nx.MultiDiGraph())
 
+        self.causal_graph = nx.MultiDiGraph()
+
         self.action_matrix = np.array([
             [[0,1], [0,1], [0,1], [0,1]],
             [[0,1], [0,1], [0,1], [0,1]],
             [[0,1], [0,1], [0,1], [0,1]],
             [[0,1], [0,1], [0,1], [0,1]],
-        ])    
+        ])
 
-        for edge in self.causal_graph.edges():
-            self.causal_graph.remove_edge(edge[0], edge[1])
+        for edge in causal_graph.edges():
             self.causal_graph.add_edge(edge[0], edge[1], action=0) # Push cart to left
             self.causal_graph.add_edge(edge[0], edge[1], action=1) # Push cart to right
 
