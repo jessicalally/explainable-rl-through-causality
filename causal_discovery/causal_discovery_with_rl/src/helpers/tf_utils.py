@@ -15,7 +15,7 @@ def set_seed(seed):
     # Reproducibility
     random.seed(seed)
     np.random.seed(seed)
-    tf.set_random_seed(seed)
+    tf.random.set_seed(seed)
     try:
         os.environ['PYTHONHASHSEED'] = str(seed)
     except:

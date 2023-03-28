@@ -1,6 +1,5 @@
 import tensorflow as tf
-from tensorflow.contrib import distributions as distr
-
+from tensorflow.compat.v1 import distributions as distr
 
 class NTNDecoder(object):
 

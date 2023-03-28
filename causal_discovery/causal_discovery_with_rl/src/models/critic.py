@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow.contrib.rnn import LSTMCell, MultiRNNCell, DropoutWrapper
+import tensorflow.compat.v1 as tf
+# from tensorflow.contrib.rnn import LSTMCell, MultiRNNCell, DropoutWrapper
 import numpy as np
 #from tqdm import tqdm
 
@@ -18,7 +18,7 @@ class Critic(object):
         # Network config
         self.input_embed = config.hidden_dim 
         self.num_neurons = config.hidden_dim 
-        self.initializer = tf.contrib.layers.xavier_initializer() 
+        self.initializer = tf.keras.initializers.glorot_normal()
 
         # Baseline setup
         self.init_baseline = 0.

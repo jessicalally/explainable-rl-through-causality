@@ -1,5 +1,5 @@
-import tensorflow as tf
-from tensorflow.contrib import distributions as distr
+import tensorflow.compat.v1 as tf
+from tensorflow.compat.v1 import distributions as distr
 
 
 class SingleLayerDecoder(object):
@@ -11,7 +11,7 @@ class SingleLayerDecoder(object):
         self.input_embed = config.hidden_dim    # dimension of embedding space (actor)
         self.max_length = config.max_length
         self.decoder_hidden_dim = config.decoder_hidden_dim
-        self.initializer = tf.contrib.layers.xavier_initializer() # variables initializer
+        self.initializer = tf.keras.initializers.glorot_normal() # variables initializer
         self.decoder_activation = config.decoder_activation
         self.use_bias = config.use_bias
         self.bias_initial_value = config.bias_initial_value
