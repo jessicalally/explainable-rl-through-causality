@@ -1,6 +1,6 @@
 import tensorflow as tf
-from tensorflow.contrib.rnn import LSTMCell, GRUCell, MultiRNNCell, DropoutWrapper
-from tensorflow.contrib import distributions as distr
+# from tensorflow.contrib.rnn import LSTMCell, GRUCell, MultiRNNCell, DropoutWrapper
+from tensorflow.compat.v1 import distributions as distr
 
 from ..encoder import TransformerEncoder
 # from config_graph import get_config, print_config
@@ -84,7 +84,7 @@ class TransformerDecoder(object):
         self.num_stacks = config.num_stacks
         self.max_length = config.max_length
  
-        self.initializer = tf.contrib.layers.xavier_initializer() # variables initializer
+        self.initializer = tf.compat.v1.estimator.layers.xavier_initializer() # variables initializer
  
 
         self.is_training = is_train

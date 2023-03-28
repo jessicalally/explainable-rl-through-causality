@@ -17,7 +17,7 @@ import pandas as pd
 from pytz import timezone
 from datetime import datetime
 import matplotlib.pyplot as plt
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from data_loader import DataGenerator_read_data
 from models import Actor
