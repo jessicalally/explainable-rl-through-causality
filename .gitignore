@@ -4,3 +4,7 @@ __pycache__/
 
 ### SCM Training ###
 scm_models/
+
+### Data ###
+*.csv
+*.npy
