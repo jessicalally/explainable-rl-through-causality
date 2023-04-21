@@ -8,8 +8,11 @@ import utils
 # Choose which environment to use
 environment = Cartpole()
 
-# Choose which RL algorithm to use 
-q_learning = QLearning(environment.env, environment.state_space, environment.action_space)
+# Choose which RL algorithm to use
+q_learning = QLearning(
+    environment.env,
+    environment.state_space,
+    environment.action_space)
 q_table, data_set, bins = q_learning.train()
 
 # Initialise action influence model
@@ -27,7 +30,7 @@ action_influence_model.train()
 # fidelity = evaluation.evaluate_fidelity(test_data, action_influence_model)
 # print("Fidelity="+str(fidelity))
 # faithfulness = evaluation.evaluate_faithfulness(
-#     test_data, 
+#     test_data,
 #     action_influence_model
 # )
 

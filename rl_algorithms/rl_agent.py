@@ -7,6 +7,6 @@ class RLAgent:
         pass
 
     def generate_test_data(self):
-        """ Generates example (state, action, next_state) tuples from the 
-        trained agent to be used in evaluation. """ 
+        """ Generates example (state, action, next_state) tuples from the
+        trained agent to be used in evaluation. """
         pass
