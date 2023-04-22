@@ -245,3 +245,46 @@ class LunarLander(Environment):
         (8, 15),
         (8, 16),
     ]
+
+
+#### Mountain Car ####
+
+class MountainCar(Environment):
+    true_dag = np.array([
+        [0, 0, 1, 1, 0],  # 0 = pos t
+        [0, 0, 1, 1, 1],  # 1 = velocity t
+        [0, 0, 0, 1, 1],  # 2 = action t
+        [0, 0, 0, 0, 0],  # 3 = pos t + 1
+        [0, 0, 0, 0, 0],  # 4 = velocity t + 1
+    ])
+
+    labels = [
+        'pos(t)',
+        'velocity(t)',
+        'action(t)',
+        'pos(t-1)',
+        'velocity(t-1)',
+        'action(t-1)'
+    ]
+
+    # Assumption: we cannot have any causal relationships that go backwards in
+    # time
+    forbidden_edges = [
+        (2, 0),
+        (2, 1),
+        (3, 0),
+        (3, 1),
+        (3, 2),
+        (4, 0),
+        (4, 1),
+        (4, 2),
+    ]
+
+    # Assumption: all past state variables affect action choice and action
+    # affects all future state variables
+    required_edges = [
+        (0, 2),
+        (1, 2),
+        (2, 3),
+        (3, 4)
+    ]
