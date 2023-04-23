@@ -249,13 +249,19 @@ class LunarLander(Environment):
 
 #### Mountain Car ####
 
+# Transition dynamics for Mountain Car
+# (https://gymnasium.farama.org/environments/classic_control/mountain_car/)
+
+# velocityt+1 = velocityt + (action - 1) * force - cos(3 * positiont) * gravity
+# positiont+1 = positiont + velocityt+1
+
 class MountainCar(Environment):
     true_dag = np.array([
-        [0, 0, 1, 1, 0],  # 0 = pos t
-        [0, 0, 1, 1, 1],  # 1 = velocity t
-        [0, 0, 0, 1, 1],  # 2 = action t
+        [0, 0, 1, 1, 1],  # 0 = pos t
+        [0, 0, 1, 0, 1],  # 1 = velocity t
+        [0, 0, 0, 0, 1],  # 2 = action t
         [0, 0, 0, 0, 0],  # 3 = pos t + 1
-        [0, 0, 0, 0, 0],  # 4 = velocity t + 1
+        [0, 0, 0, 1, 0],  # 4 = velocity t + 1
     ])
 
     labels = [
