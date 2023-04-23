@@ -1,7 +1,11 @@
 import numpy as np
+import gym
 
 
 class Environment(object):
+    state_space = None
+    action_space = None
+    env = None
     true_dag = None
     # TODO: currently needed for VarLiNGAM DAG plots, find a better way to
     # generalise for all methods
@@ -15,6 +19,8 @@ class Environment(object):
             return Cartpole()
         elif env == 'lunarlander':
             return LunarLander()
+        elif env == 'mountaincar':
+            return MountainCar()
         else:
             raise ValueError(f'{env} is an unsupported environment')
 
@@ -22,6 +28,10 @@ class Environment(object):
 
 
 class Cartpole(Environment):
+    state_space = 4
+    action_space = 2
+    env = gym.make('CartPole-v1')
+
     true_dag = np.array([
         [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = pos t
         [0, 0, 0, 0, 1, 1, 1, 0, 0],  # 1 = velocity t
@@ -92,6 +102,18 @@ class Cartpole(Environment):
 ##### Lunar Lander #####
 
 class LunarLander(Environment):
+    state_space = 8
+    action_space = 4
+
+    env = gym.make(
+        "LunarLander-v2",
+        continuous=False,
+        gravity=-10.0,
+        enable_wind=False,
+        wind_power=15.0,
+        turbulence_power=1.5,
+    )
+
     true_dag = np.array([
         [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
         [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],  # 1 = y coord t
@@ -256,6 +278,10 @@ class LunarLander(Environment):
 # positiont+1 = positiont + velocityt+1
 
 class MountainCar(Environment):
+    state_space = 2
+    action_space = 3
+    env = gym.make('MountainCar-v0')
+
     true_dag = np.array([
         [0, 0, 1, 1, 1],  # 0 = pos t
         [0, 0, 1, 0, 1],  # 1 = velocity t
