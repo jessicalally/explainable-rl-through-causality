@@ -21,6 +21,8 @@ class Environment(object):
             return LunarLander()
         elif env == 'mountaincar':
             return MountainCar()
+        elif env == 'taxi':
+            return Taxi()
         else:
             raise ValueError(f'{env} is an unsupported environment')
 
