@@ -151,6 +151,10 @@ class VarLiNGAM(Method):
             print_dag_probabilities=False):
         threshold = 0.3
 
+        # Reshape data as VarLiNGAM currently requires a different CSV structure
+        # than the other algorithms (rows of state + action)
+        data = data[:, :-env.state_space]
+
         model = VARLiNGAM()
         model.fit(data)
 
