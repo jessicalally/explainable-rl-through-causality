@@ -8,3 +8,6 @@ scm_models/
 ### Data ###
 *.csv
 *.npy
+
+### Causal Discovery ###
+causal_discovery/output/
