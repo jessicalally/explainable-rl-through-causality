@@ -320,3 +320,74 @@ class MountainCar(Environment):
         (2, 3),
         (3, 4)
     ]
+
+#### Taxi ####
+
+
+class Taxi(Environment):
+    state_space = 4
+    action_space = 6
+    env = gym.make('Taxi-v3')
+
+    true_dag = np.array([
+        [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = taxi row t
+        [0, 0, 0, 0, 1, 0, 1, 0, 0],  # 1 = taxi column t
+        [0, 0, 0, 0, 1, 0, 0, 1, 0],  # 2 = passenger location t
+        [0, 0, 0, 0, 1, 0, 0, 0, 1],  # 3 = destination t
+        [0, 0, 0, 0, 0, 1, 1, 1, 1],  # 4 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = taxi row t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = taxi column t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = passenger location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = destination t + 1
+    ])
+
+    labels = [
+        'row(t)',
+        'column(t)',
+        'pass(t)',
+        'dest(t)',
+        'action(t)',
+        'row(t-1)',
+        'column(t-1)',
+        'pass(t-1)',
+        'dest(t-1)',
+        'action(t-1)'
+    ]
+
+    # Assumption: we cannot have any causal relationships that go backwards in
+    # time
+    forbidden_edges = [
+        (4, 0),
+        (4, 1),
+        (4, 2),
+        (4, 3),
+        (5, 0),
+        (5, 1),
+        (5, 2),
+        (5, 3),
+        (6, 0),
+        (6, 1),
+        (6, 2),
+        (6, 3),
+        (7, 0),
+        (7, 1),
+        (7, 2),
+        (7, 3),
+        (8, 0),
+        (8, 1),
+        (8, 2),
+        (8, 3),
+    ]
+
+    # Assumption: all past state variables affect action choice and action
+    # affects all future state variables
+    required_edges = [
+        (0, 4),
+        (1, 4),
+        (2, 4),
+        (3, 4),
+        (4, 5),
+        (4, 6),
+        (4, 7),
+        (4, 8),
+    ]
