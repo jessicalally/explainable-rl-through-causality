@@ -1,7 +1,7 @@
 import numpy as np
 import gym
 
-
+# TODO: separate environments into separate files
 class Environment(object):
     state_space = None
     action_space = None
@@ -27,7 +27,6 @@ class Environment(object):
             raise ValueError(f'{env} is an unsupported environment')
 
 ##### Cartpole #####
-
 
 class Cartpole(Environment):
     state_space = 4
@@ -393,3 +392,175 @@ class Taxi(Environment):
         (4, 7),
         (4, 8),
     ]
+
+
+#### Starcraft ####
+
+class Starcraft(Environment):
+    state_space = 9
+    action_space = 4
+    env = None # TODO
+
+    true_dag = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0],  # 1 = supply depot number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0],  # 2 = barracks number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1],  # 3 = enemy location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1],  # 4 = ally unit number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1],  # 5 = ally unit health t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 6 = ally unit location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],  # 7 = destroyed units t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destroyed buildings t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # 9 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 10 = worker supply number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = supply depot number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = barracks number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = enemy location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = ally unit number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 15 = ally unit health t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16 = ally unit location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 17 = destroyed units t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 18 = destroyed buildings t + 1
+    ])
+
+    labels = [
+        'W(t)',
+        'S(t)',
+        'B(t)',
+        'El(t)',
+        'An(t)',
+        'Ah(t)',
+        'Al(t)',
+        'Du(t)',
+        'Db(t)'
+        'A(t)',
+        'W(t-1)',
+        'S(t-1)',
+        'B(t-1)',
+        'El(t-1)',
+        'An(t-1)',
+        'Ah(t-1)',
+        'Al(t-1)',
+        'Du(t-1)',
+        'Db(t-1)'
+        'A(t-1)',
+    ]
+
+    # Assumption: we cannot have any causal relationships that go backwards in
+    # time
+    forbidden_edges = [
+        (9, 0),
+        (9, 1),
+        (9, 2),
+        (9, 3),
+        (9, 4),
+        (9, 5),
+        (9, 6),
+        (9, 7),
+        (9, 8),
+        (10, 0),
+        (10, 1),
+        (10, 2),
+        (10, 3),
+        (10, 4),
+        (10, 5),
+        (10, 6),
+        (10, 7),
+        (10, 8),
+        (11, 0),
+        (11, 1),
+        (11, 2),
+        (11, 3),
+        (11, 4),
+        (11, 5),
+        (11, 6),
+        (11, 7),
+        (11, 8),
+        (12, 0),
+        (12, 1),
+        (12, 2),
+        (12, 3),
+        (12, 4),
+        (12, 5),
+        (12, 6),
+        (12, 7),
+        (12, 8),
+        (13, 0),
+        (13, 1),
+        (13, 2),
+        (13, 3),
+        (13, 4),
+        (13, 5),
+        (13, 6),
+        (13, 7),
+        (13, 8),
+        (14, 0),
+        (14, 1),
+        (14, 2),
+        (14, 3),
+        (14, 4),
+        (14, 5),
+        (14, 6),
+        (14, 7),
+        (14, 8),
+        (15, 0),
+        (15, 1),
+        (15, 2),
+        (15, 3),
+        (15, 4),
+        (15, 5),
+        (15, 6),
+        (15, 7),
+        (15, 8),
+        (16, 0),
+        (16, 1),
+        (16, 2),
+        (16, 3),
+        (16, 4),
+        (16, 5),
+        (16, 6),
+        (16, 7),
+        (16, 8),
+        (17, 0),
+        (17, 1),
+        (17, 2),
+        (17, 3),
+        (17, 4),
+        (17, 5),
+        (17, 6),
+        (17, 7),
+        (17, 8),
+        (18, 0),
+        (18, 1),
+        (18, 2),
+        (18, 3),
+        (18, 4),
+        (18, 5),
+        (18, 6),
+        (18, 7),
+        (18, 8),
+    ]
+
+    # Assumption: all past state variables affect action choice and action
+    # affects all future state variables
+    required_edges = [
+        (0, 9),
+        (1, 9),
+        (2, 9),
+        (3, 9),
+        (4, 9),
+        (5, 9),
+        (6, 9),
+        (7, 9),
+        (8, 9),
+        (9, 10),
+        (9, 11),
+        (9, 12),
+        (9, 13),
+        (9, 14),
+        (9, 15),
+        (9, 16),
+        (9, 17),
+        (9, 18),
+    ]
+
