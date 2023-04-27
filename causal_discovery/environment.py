@@ -23,6 +23,8 @@ class Environment(object):
             return MountainCar()
         elif env == 'taxi':
             return Taxi()
+        elif env == 'starcraft':
+            return Starcraft()
         else:
             raise ValueError(f'{env} is an unsupported environment')
 
