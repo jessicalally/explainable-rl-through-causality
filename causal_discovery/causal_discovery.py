@@ -1,6 +1,7 @@
 import argparse
 from castle.common import GraphDAG
 from castle.metrics import MetricsDAG
+import csv
 from environment import Environment
 from method import Method
 import numpy as np
@@ -32,7 +33,9 @@ def parse_args():
     args = parser.parse_args()
 
     if not os.path.exists(args.save_path):
-        os.makedirs(args.save_path)
+        os.makedirs(f'{args.save_path}/graphs/')
+        os.makedirs(f'{args.save_path}/causal_matrices/')
+        os.makedirs(f'{args.save_path}/metrics/')
 
     return args
 
@@ -53,13 +56,23 @@ def get_data(path, num_datapoints=30000):
 
 
 def display_graphs(causal_matrix, true_dag, args, with_assumptions):
-    save_path = f'{args.save_path}_{args.env}_{args.method}_assumptions_{with_assumptions}'
+    save_path = f'{args.save_path}/graphs/{args.env}_{args.method}_assumptions_{with_assumptions}'
     GraphDAG(causal_matrix, true_dag, show=True, save_name=save_path)
 
 
-def evaluate(causal_matrix, true_dag):
+def evaluate(causal_matrix, true_dag, args, with_assumptions):
     met = MetricsDAG(causal_matrix, true_dag)
     print(met.metrics)
+    save_metrics(met.metrics, args, with_assumptions)
+
+
+def save_metrics(metrics, args, with_assumptions):
+    file = f'{args.save_path}/metrics/{args.env}_{args.method}_assumptions_{with_assumptions}.csv'
+
+    with open(file, "w", newline="") as fp:
+        writer = csv.DictWriter(fp, fieldnames=metrics.keys())
+        writer.writeheader()
+        writer.writerow(metrics)
 
 
 def main(args):
@@ -94,8 +107,12 @@ def main(args):
         True
     )
 
-    evaluate(causal_matrix_no_assumptions, env.true_dag)
-    evaluate(causal_matrix_with_assumptions, env.true_dag)
+    evaluate(causal_matrix_no_assumptions, env.true_dag, args, False)
+    evaluate(causal_matrix_with_assumptions, env.true_dag, args, True)
+
+    save_path = f'{args.save_path}/causal_matrices/{args.env}_{args.method}_assumptions_'
+    np.save(save_path + 'False', causal_matrix_no_assumptions)
+    np.save(save_path + 'True', causal_matrix_with_assumptions)
 
 
 if __name__ == '__main__':
