@@ -1,7 +1,10 @@
+import networkx as nx
 import numpy as np
 import gym
 
 # TODO: separate environments into separate files
+
+
 class Environment(object):
     state_space = None
     action_space = None
@@ -29,6 +32,7 @@ class Environment(object):
             raise ValueError(f'{env} is an unsupported environment')
 
 ##### Cartpole #####
+
 
 class Cartpole(Environment):
     state_space = 4
@@ -395,34 +399,67 @@ class Taxi(Environment):
         (4, 8),
     ]
 
+    # 0 = move south, 1 = move north, 2 = move east, 3 = move west,
+    # 4 = pickup passenger, 5 = drop off passenger
+    action_set = (0, 1, 2, 3, 4, 5)
+
+    def __init__(self):
+        causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
+        self.causal_graph = nx.MultiDiGraph()
+
+        for edge in causal_graph.edges():
+            self.causal_graph.add_edge(
+                edge[0], edge[1], action=0)  # Push cart to left
+            self.causal_graph.add_edge(
+                edge[0], edge[1], action=1)  # Push cart to right
+
 
 #### Starcraft ####
 
 class Starcraft(Environment):
     state_space = 9
     action_space = 4
-    env = None # TODO
+    env = None  # TODO
 
     true_dag = np.array([
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0],  # 1 = supply depot number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0],  # 2 = barracks number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1],  # 3 = enemy location t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1],  # 4 = ally unit number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1],  # 5 = ally unit health t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 6 = ally unit location t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],  # 7 = destroyed units t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destroyed buildings t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
+            0, 0, 0, 0],  # 0 = worker supply number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
+            0, 0, 0, 0],  # 1 = supply depot number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0,
+            1, 0, 0, 0, 0],  # 2 = barracks number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1,
+            0, 0, 0, 1, 1],  # 3 = enemy location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+            1, 0, 0, 1, 1],  # 4 = ally unit number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+            0, 1, 0, 1, 1],  # 5 = ally unit health t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+            0, 1, 1, 1],  # 6 = ally unit location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+            0, 0, 0, 1, 0],  # 7 = destroyed units t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
+            0, 0, 0, 1],  # 8 = destroyed buildings t
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # 9 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 10 = worker supply number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = supply depot number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = barracks number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = enemy location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = ally unit number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 15 = ally unit health t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16 = ally unit location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 17 = destroyed units t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 18 = destroyed buildings t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0],  # 10 = worker supply number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0],  # 11 = supply depot number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0],  # 12 = barracks number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0],  # 13 = enemy location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0],  # 14 = ally unit number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0],  # 15 = ally unit health t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0],  # 16 = ally unit location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0],  # 17 = destroyed units t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0],  # 18 = destroyed buildings t + 1
     ])
 
     labels = [
@@ -565,4 +602,3 @@ class Starcraft(Environment):
         (9, 17),
         (9, 18),
     ]
-
