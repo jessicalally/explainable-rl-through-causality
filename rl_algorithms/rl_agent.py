@@ -6,3 +6,7 @@ class RLAgent:
         """ Trains the RL agent and generates training data for learning the
         action influence model, and for causal discovery. """
         pass
+
+    def generate_test_data(self, num_datapoints):
+        """ Generates random data from the trained RL agent for evaluation. """
+        pass
