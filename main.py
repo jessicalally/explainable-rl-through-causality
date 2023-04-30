@@ -1,34 +1,49 @@
-from action_influence_model import ActionInfluenceModel
-from environments.cartpole import Cartpole
+from causal_discovery.environment import *
 import evaluation
-from rl_algorithms.q_learning import QLearning
-import gym
-import utils
+import numpy as np
+from rl_algorithms.SARSA import SARSA
+from structural_causal_model import StructuralCausalModel
 
 # Choose which environment to use
-environment = Cartpole()
+env = Taxi()
 
 # Choose which RL algorithm to use
-q_learning = QLearning(
-    environment.env,
-    environment.state_space,
-    environment.action_space)
-q_table, data_set, bins = q_learning.train()
+rl_agent = SARSA(env)
+action_influence_dataset, causal_discovery_dataset = rl_agent.train()
 
 # Initialise action influence model
-action_influence_model = ActionInfluenceModel(
-    environment.causal_graph,
-    environment.action_matrix,
-    data_set
+# action_influence_model = ActionInfluenceModel(
+#     environment.causal_graph,
+#     environment.action_matrix,
+#     data_set
+# )
+# action_influence_model.train()
+
+num_datapoints = 100000
+
+data = rl_agent.generate_test_data(num_datapoints)
+rnd_indices = np.random.choice(len(data), 25000)
+data = data[rnd_indices]
+
+print(f'Data: {data.shape}')
+
+scm = StructuralCausalModel(
+    env,
+    data
 )
-action_influence_model.train()
+
+scm.train()
 
 # Evaluation
-# test_data = q_learning.generate_test_data(environment.env, q_table)
-# accuracy = evaluation.task_prediction(test_data, action_influence_model)
+test_data = rl_agent.generate_test_data(num_datapoints)
+
+# accuracy = evaluation.task_prediction(data, scm)
 # print("Accuracy="+str(accuracy))
-# fidelity = evaluation.evaluate_fidelity(test_data, action_influence_model)
-# print("Fidelity="+str(fidelity))
+
+mse, action_predictions = evaluation.evaluate_fidelity(scm, test_data)
+print("MSE=" + str(mse))
+print("Correct action predictions=" + str(action_predictions))
+
 # faithfulness = evaluation.evaluate_faithfulness(
 #     test_data,
 #     action_influence_model
@@ -37,5 +52,5 @@ action_influence_model.train()
 # TODO: processing explanations
 
 # Causal graph discovery
-data = q_learning.generate_data_for_causal_discovery(environment.env, q_table)
-utils.convert_data_to_csv(data, "X.csv")
+# data = q_learning.generate_data_for_causal_discovery(environment.env, q_table)
+# utils.convert_data_to_csv(data, "X.csv")
