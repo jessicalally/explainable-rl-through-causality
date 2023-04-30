@@ -1,6 +1,10 @@
+import numpy as np
+
 # Task prediction method from Madumal et al.
 # TODO: need to be careful between discrete and continuous states, since we're
 # learning on discrete bins
+
+
 def task_prediction(test_data, action_influence_model):
     trained_structural_equations = action_influence_model.structural_equations
     num_correct_action_predictions = 0
@@ -44,47 +48,47 @@ def task_prediction(test_data, action_influence_model):
 
 
 # Fidelity: Measures the prediction accuracy of the trained causal model
-def evaluate_fidelity(test_data, action_influence_model):
-    trained_structural_equations = action_influence_model.structural_equations
+def evaluate_fidelity(scm, test_data, num_test_points=100):
+    print("Evaluating prediction accuracy of the trained SCM...")
+    trained_structural_equations = scm.structural_equations
 
     # Evaluates how accurately the causal model predicts the chosen action
-    # TODO: we need to be able to predict actions directly from the model to
-    # do this
-    # num_correct_action_predictions = 0
+    num_correct_action_predictions = 0
 
-    # Evaluates how accurately the causal model predicts the next state (%)
-    avg_predicted_next_state_diff = 0
+    # Evaluates how accurately the causal model predicts state variables
+    avg_mse = 0
 
-    for test_case in range(10):
-        print(test_case)
-        (state, action, next_state) = test_data[test_case]
+    rnd_indices = np.random.choice(len(test_data), num_test_points)
+    test_data = test_data[rnd_indices]
 
-        predicted_next_states = action_influence_model.predict_from_scm(
+    for test_case in range(num_test_points):
+        predicted_nodes = scm.predict_from_scm(
             trained_structural_equations,
-            state
+            test_data[test_case],
         )
 
-        # Evaluates fidelity of predicted states
-        total_predicted_state_diff = 0.0
+        # Evaluates fidelity of predicted state values
+        total_diff = 0.0
 
-        for key in trained_structural_equations:
-            if key[1] == action:
-                predicted_next_state = predicted_next_states[key]
-                actual_next_state = next_state[key[0]]
-                diff = (abs(predicted_next_state - actual_next_state)
-                        ) / abs(actual_next_state)
-                total_predicted_state_diff += diff
+        for node in trained_structural_equations:
+            predicted_value = predicted_nodes[node][0]
+            actual_value = test_data[test_case][node]
 
-        avg_predicted_next_state_diff = (
-            (avg_predicted_next_state_diff * test_case) + total_predicted_state_diff) / (test_case + 1)
+            # print(f'node: {node}, predicted: {predicted_value}, actual: {actual_value}')
 
-        # Evaluates fidelity of predicted actions
-        # if action == predicted_action:
-        #     num_correct_action_predictions += 1
+            if trained_structural_equations[node]['type'] == 'state':
+                diff = (abs(actual_value - predicted_value)) ** 2
+                total_diff += diff
+            elif trained_structural_equations[node]['type'] == 'action':
+                if predicted_value == actual_value:
+                    num_correct_action_predictions += 1
 
-    fidelity = 100 - (avg_predicted_next_state_diff * 100)
+        mse = total_diff / len(trained_structural_equations)
+        avg_mse = ((avg_mse * test_case) + mse) / (test_case + 1)
 
-    return fidelity
+    avg_correct_action_predictions = num_correct_action_predictions / num_test_points
+
+    return avg_mse, avg_correct_action_predictions
 
 # Performance: Measures the time taken to train the model
 
