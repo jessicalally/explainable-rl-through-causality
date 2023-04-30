@@ -32,7 +32,7 @@ class SARSA(RLAgent):
 
         return random.randrange(self.action_space)
 
-    def generate_epsilon_greedy_policy(self):
+    def _generate_epsilon_greedy_policy(self):
         def policy_fn(state):
             policy = np.ones(self.action_space) * \
                 self.epsilon / self.action_space
@@ -43,14 +43,24 @@ class SARSA(RLAgent):
 
         return policy_fn
 
-    def train(self, episodes=30000, reward_threshold=0):
+    def _generate_deterministic_policy(self):
+        def policy_fn(state):
+            policy = np.zeros(self.action_space)
+            best_action = np.argmax(self.Q[state])
+            policy[best_action] = 1.0
+
+            return policy
+
+        return policy_fn
+
+    def train(self, episodes=50000, reward_threshold=10):
         causal_discovery_dataset = []
         action_influence_dataset = []
 
         print('Performing SARSA algorithm...')
 
         results = []
-        policy = self.generate_epsilon_greedy_policy()
+        policy = self._generate_epsilon_greedy_policy()
         max_steps = 50
 
         for e in range(episodes):
@@ -108,3 +118,51 @@ class SARSA(RLAgent):
         print('Finished SARSA Algorithm...')
 
         return action_influence_dataset, causal_discovery_dataset
+
+    # Generates datapoints from the trained RL agent
+    def generate_test_data(self, num_datapoints):
+        test_data = []
+        policy = self._generate_deterministic_policy()
+        episode = 0
+
+        print("Generating test data...")
+
+        while len(test_data) < num_datapoints:
+            state, _ = self.env.reset()
+            action_probs = policy(state)
+            action = self.choose_action(action_probs)
+            done = False
+            total_reward = 0
+
+            while not done and len(test_data) < num_datapoints:
+                next_state, reward, done, _, _ = self.env.step(action)
+                next_action_probs = policy(next_state)
+                next_action = self.choose_action(next_action_probs)
+
+                # Taxi environment requires decoding the state into the separate
+                # state variables
+                taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(state)
+                decoded_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+
+                taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(
+                    next_state)
+                decoded_next_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+
+                test_data.append(
+                    np.concatenate(
+                        (decoded_state,
+                         np.array(action),
+                            decoded_next_state),
+                        axis=None))
+
+                total_reward += reward
+                action = next_action
+                state = next_state
+
+            print("episode: {}, score: {}".format(episode, total_reward))
+            print("num datapoints collected so far: {}".format(len(test_data)))
+            episode += 1
+
+        print("Finished generating test data...")
+
+        return np.array(test_data)
