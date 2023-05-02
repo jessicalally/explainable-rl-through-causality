@@ -403,16 +403,18 @@ class Taxi(Environment):
     # 4 = pickup passenger, 5 = drop off passenger
     action_set = (0, 1, 2, 3, 4, 5)
 
-    def __init__(self):
-        causal_graph = nx.from_numpy_matrix(
-            self.true_dag, create_using=nx.MultiDiGraph())
-        self.causal_graph = nx.MultiDiGraph()
+    learnt_causal_graph = None
 
-        for edge in causal_graph.edges():
-            self.causal_graph.add_edge(
-                edge[0], edge[1], action=0)  # Push cart to left
-            self.causal_graph.add_edge(
-                edge[0], edge[1], action=1)  # Push cart to right
+    def __init__(self):
+        self.causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
+        # self.causal_graph = nx.MultiDiGraph()
+
+        # for edge in causal_graph.edges():
+        #     self.causal_graph.add_edge(
+        #         edge[0], edge[1], action=0)
+        #     self.causal_graph.add_edge(
+        #         edge[0], edge[1], action=1)
 
 
 #### Starcraft ####

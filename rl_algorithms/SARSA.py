@@ -117,7 +117,7 @@ class SARSA(RLAgent):
 
         print('Finished SARSA Algorithm...')
 
-        return action_influence_dataset, causal_discovery_dataset
+        return np.array(action_influence_dataset), np.array(causal_discovery_dataset)
 
     # Generates datapoints from the trained RL agent
     def generate_test_data(self, num_datapoints):
