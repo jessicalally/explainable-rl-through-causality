@@ -35,6 +35,7 @@ class Environment(object):
 
 
 class Cartpole(Environment):
+    name = "cartpole"
     state_space = 4
     action_space = 2
     env = gym.make('CartPole-v1')
@@ -105,10 +106,15 @@ class Cartpole(Environment):
         (4, 8),
     ]
 
+    def __init__(self):
+        self.causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
+
 
 ##### Lunar Lander #####
 
 class LunarLander(Environment):
+    name = "lunarlander"
     state_space = 8
     action_space = 4
 
@@ -275,6 +281,10 @@ class LunarLander(Environment):
         (8, 16),
     ]
 
+    def __init__(self):
+        self.causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
+
 
 #### Mountain Car ####
 
@@ -285,6 +295,7 @@ class LunarLander(Environment):
 # positiont+1 = positiont + velocityt+1
 
 class MountainCar(Environment):
+    name = "mountaincar"
     state_space = 2
     action_space = 3
     env = gym.make('MountainCar-v0')
@@ -328,10 +339,16 @@ class MountainCar(Environment):
         (3, 4)
     ]
 
+    def __init__(self):
+        self.causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
+
+
+
 #### Taxi ####
 
-
 class Taxi(Environment):
+    name = "taxi"
     state_space = 4
     action_space = 6
     env = gym.make('Taxi-v3')
@@ -408,18 +425,12 @@ class Taxi(Environment):
     def __init__(self):
         self.causal_graph = nx.from_numpy_matrix(
             self.true_dag, create_using=nx.MultiDiGraph())
-        # self.causal_graph = nx.MultiDiGraph()
-
-        # for edge in causal_graph.edges():
-        #     self.causal_graph.add_edge(
-        #         edge[0], edge[1], action=0)
-        #     self.causal_graph.add_edge(
-        #         edge[0], edge[1], action=1)
 
 
 #### Starcraft ####
 
 class Starcraft(Environment):
+    name = "starcraft"
     state_space = 9
     action_space = 4
     env = None  # TODO
@@ -604,3 +615,7 @@ class Starcraft(Environment):
         (9, 17),
         (9, 18),
     ]
+
+    def __init__(self):
+        self.causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
