@@ -2,6 +2,9 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 
+### RL Agent Training ###
+trained_rl_agents/
+
 ### SCM Training ###
 scm_models/
 
@@ -10,4 +13,6 @@ scm_models/
 *.npy
 
 ### Causal Discovery ###
+causal_discovery_dataset/
 causal_discovery/output/
+causal_discovery/training_data
