@@ -13,9 +13,7 @@ class StructuralCausalModel:
         self.env = env
 
         if learned_causal_graph is not None:
-            print("here")
             self.causal_graph = learned_causal_graph
-            print(f'causal graph')
         else:
             self.causal_graph = env.causal_graph # true DAG
 
@@ -61,15 +59,10 @@ class StructuralCausalModel:
                 y_data = data_set[:, node].astype(int)
 
                 classifier = tf.estimator.DNNClassifier(
-                    n_classes=6,
+                    n_classes=self.env.action_space,
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/linear_classifier/' +
-                    str(node),
-                    hidden_units=[
-                        64,
-                        128,
-                        64,
-                        32],
+                    model_dir='scm_models/' + str(self.env.name) + '/linear_classifier/' + str(node),
+                    hidden_units=[64, 128, 64, 32],
                     dropout=0.2,
                 )
 
@@ -83,7 +76,7 @@ class StructuralCausalModel:
 
                 lr = tf.estimator.LinearRegressor(
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/linear_regressor/' + str(node))
+                    model_dir='scm_models/' + str(self.env.name) + '/linear_regressor/' + str(node))
 
                 structural_equations[node] = {
                     'X': x_data, 'Y': y_data, 'function': lr, 'type': 'state'}
@@ -171,6 +164,7 @@ class StructuralCausalModel:
             print(str(agent_step) + "/" + str(len(data_set)))
 
             datapoint = data_set[agent_step]
+            print(f'datapoint {datapoint}')
             action = datapoint[self.env.state_space]
 
             why_explanations[(agent_step,
@@ -183,12 +177,12 @@ class StructuralCausalModel:
             
             # Generate Why not B? counterfactual questions
             # Get all possible counterfactual actions
-            # poss_counter_actions = set(range(0, self.env.action_space)).difference({action})
-            # print(f'possible counter actions = {poss_counter_actions}')
+            poss_counter_actions = set(range(0, self.env.action_space)).difference({action})
+            print(f'possible counter actions = {poss_counter_actions}')
 
-            # for counter_action in poss_counter_actions:
-            #     why_not_explanations[(agent_step, action, counter_action)] = {'state': datapoint[:self.env.state_space], 
-            #                                             'why_not_exps': self.generate_counterfactual_explanations(self.env.causal_graph, self.structural_equations, datapoint, action, counter_action)}
+            for counter_action in poss_counter_actions:
+                why_not_explanations[(agent_step, action, counter_action)] = {'state': datapoint[:self.env.state_space], 
+                                                        'why_not_exps': self.generate_counterfactual_explanations(self.env.causal_graph, self.structural_equations, datapoint, action, counter_action)}
 
         pd.DataFrame.from_dict(
             data=why_explanations,
