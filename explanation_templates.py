@@ -33,7 +33,12 @@ cartpole_features = {
     0: 'cart position',
     1: 'cart velocity',
     2: 'pole angle',
-    3: 'pole angular velocity'
+    3: 'pole angular velocity',
+    4: 'action',
+    5: 'cart position',
+    6: 'cart velocity',
+    7: 'pole angle',
+    8: 'pole angular velocity'
 }
 
 taxi_actions = {

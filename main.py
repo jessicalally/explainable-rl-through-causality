@@ -10,16 +10,15 @@ from rl_algorithms.policy_gradient import PolicyGradient
 from structural_causal_model import StructuralCausalModel
 
 # Choose which environment to use
-# env = Taxi()
 env = Cartpole()
 
 # Choose which RL algorithm to use
-# Train agent from scratch
-# rl_agent = SARSA(env)
 rl_agent = PolicyGradient(env)
-action_influence_dataset, causal_discovery_dataset = rl_agent.train()
-print(causal_discovery_dataset.shape)
-print(causal_discovery_dataset)
+
+# Train agent from scratch
+# action_influence_dataset, causal_discovery_dataset = rl_agent.train()
+# print(causal_discovery_dataset.shape)
+# print(causal_discovery_dataset)
 
 rl_agent_path = "trained_rl_agents/pg.pickle"
 # os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
@@ -53,11 +52,10 @@ learned_causal_graph = nx.from_numpy_matrix(
             causal_matrix_with_assumptions, create_using=nx.MultiDiGraph())
 
 # Train structural causal model
-
 scm = StructuralCausalModel(
     env,
     causal_discovery_dataset,
-    # learned_causal_graph
+    learned_causal_graph
 )
 
 scm.train()
@@ -80,6 +78,6 @@ print("MSE=" + str(mse))
 print("Correct action predictions=" + str(action_predictions))
 
 # Processing explanations
-# why_explanations, why_not_explanations = scm.process_explanations(test_data)
-# print(f'why explanations: {why_explanations}')
+why_explanations, why_not_explanations = scm.process_explanations(test_data)
+print(f'why explanations: {why_explanations}')
 # print(f'why not explanations: {why_not_explanations}')
