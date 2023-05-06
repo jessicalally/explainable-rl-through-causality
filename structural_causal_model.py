@@ -160,7 +160,7 @@ class StructuralCausalModel:
         why_explanations = {}
         why_not_explanations = {}
 
-        for agent_step in range(0, 1, 10):
+        for agent_step in range(0, 100, 10):
             print(str(agent_step) + "/" + str(len(data_set)))
 
             datapoint = data_set[agent_step]
@@ -177,24 +177,24 @@ class StructuralCausalModel:
             
             # Generate Why not B? counterfactual questions
             # Get all possible counterfactual actions
-            poss_counter_actions = set(range(0, self.env.action_space)).difference({action})
-            print(f'possible counter actions = {poss_counter_actions}')
+            # poss_counter_actions = set(range(0, self.env.action_space)).difference({action})
+            # print(f'possible counter actions = {poss_counter_actions}')
 
-            for counter_action in poss_counter_actions:
-                why_not_explanations[(agent_step, action, counter_action)] = {'state': datapoint[:self.env.state_space], 
-                                                        'why_not_exps': self.generate_counterfactual_explanations(self.env.causal_graph, self.structural_equations, datapoint, action, counter_action)}
+            # for counter_action in poss_counter_actions:
+            #     why_not_explanations[(agent_step, action, counter_action)] = {'state': datapoint[:self.env.state_space], 
+            #                                             'why_not_exps': self.generate_counterfactual_explanations(self.env.causal_graph, self.structural_equations, datapoint, action, counter_action)}
 
         pd.DataFrame.from_dict(
             data=why_explanations,
             orient='index').to_csv(
-            'why_explanations_taxi.csv',
+            f'why_explanations_{self.env.name}.csv',
             mode='a',
             header=False)
         
         pd.DataFrame.from_dict(
             data=why_not_explanations,
             orient='index').to_csv(
-            'why_not_explanations_taxi.csv',
+            f'why_not_explanations_{self.env.name}.csv',
             mode='a',
             header=False)
         
@@ -274,15 +274,23 @@ class StructuralCausalModel:
             min_tuple_noop_transition = self.get_minimally_complete_tuples(
                 causal_chain, noop_transition)
                 
-                # TODO: we want to remove those tuples with state variables between t and t+1
-                # that actually did not change, so we can have just those action explanations
-                # for variables that changed!
+            # TODO: we want to remove those tuples with state variables between t and t+1
+            # that actually did not change, so we can have just those action explanations
+            # for variables that changed!
 
-                # Generate explanation text
+            # Generate explanation text
 
-            explanation = explanations.taxi_generate_why_text_explanations(
-                min_tuple_noop_transition,
-                min_tuple_optimal_transition, actual_action)
+            if self.env.name == "taxi":
+                explanation = explanations.taxi_generate_why_text_explanations(
+                                min_tuple_noop_transition,
+                                min_tuple_optimal_transition, actual_action
+                            )
+            
+            elif self.env.name == "cartpole":
+                explanation = explanations.cartpole_generate_why_text_explanations(
+                        min_tuple_noop_transition,
+                        min_tuple_optimal_transition, actual_state, actual_action
+                )
             
             print(explanation + "\n")
             why_exps.add(explanation)
