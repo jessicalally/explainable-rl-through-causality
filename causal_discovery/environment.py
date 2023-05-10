@@ -52,6 +52,11 @@ class Cartpole(Environment):
         [0, 0, 0, 0, 0, 0, 0, 0, 0]  # 8 = angular t+1
     ])
 
+    # TODO: these are the nodes that directly impact the reward
+    # TODO: can we generate these automatically???
+    # cart pos and pole angle 
+    reward_nodes = {5, 7}
+
     labels = [
         'pos(t)',
         'velo(t)',
@@ -63,6 +68,24 @@ class Cartpole(Environment):
         'angle(t-1)',
         'ang-velo(t-1)',
         'action(t-1)']
+    
+
+    features = {
+        0: 'cart position',
+        1: 'cart velocity',
+        2: 'pole angle',
+        3: 'pole angular velocity',
+        4: 'action',
+        5: 'cart position',
+        6: 'cart velocity',
+        7: 'pole angle',
+        8: 'pole angular velocity'
+    }
+
+    actions = {
+        0: 'push cart to left',
+        1: 'push cart to right'
+    }
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -120,11 +143,11 @@ class LunarLander(Environment):
 
     env = gym.make(
         "LunarLander-v2",
-        continuous=False,
-        gravity=-10.0,
-        enable_wind=False,
-        wind_power=15.0,
-        turbulence_power=1.5,
+        # continuous=False,
+        # gravity=-10.0,
+        # enable_wind=False,
+        # wind_power=15.0,
+        # turbulence_power=1.5,
     )
 
     true_dag = np.array([
