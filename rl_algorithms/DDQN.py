@@ -60,6 +60,8 @@ class DDQN(RLAgent):
 
 
     def __init__(self, environment):
+        self.name = "ddqn"
+        
         # Environment
         self.env = environment.env
         self.test_env = copy.deepcopy(self.env)
@@ -225,4 +227,13 @@ class DDQN(RLAgent):
         print('Finished generating test data for DDQN Algorithm...')
 
         return np.array(test_data)
+    
+    # Methods needed for estimating feature importance
+
+    def get_q_func(self):
+        return self.q_func
+    
+
+    def get_optimal_action(self, state):
+        return self.choose_action_deterministic(state)
 
