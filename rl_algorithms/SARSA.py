@@ -11,6 +11,8 @@ from .rl_agent import RLAgent
 
 class SARSA(RLAgent):
     def __init__(self, environment):
+        self.name = "sarsa"
+        
         # Environment
         self.env = environment.env
         self.test_env = copy.deepcopy(self.env)
@@ -26,7 +28,7 @@ class SARSA(RLAgent):
 
         self.Q = defaultdict(lambda: np.zeros(self.action_space))
 
-    def choose_action(self, action_probs):
+    def _choose_action_from_probs(self, action_probs):
         if np.random.rand(1) > self.epsilon:
             return np.argmax(action_probs)
 
@@ -66,13 +68,13 @@ class SARSA(RLAgent):
         for e in range(episodes):
             state, _ = self.env.reset()
             action_probs = policy(state)
-            action = self.choose_action(action_probs)
+            action = self._choose_action_from_probs(action_probs)
             total_reward = 0
 
             for _ in range(max_steps):
                 next_state, reward, done, _, _ = self.env.step(action)
                 next_action_probs = policy(next_state)
-                next_action = self.choose_action(next_action_probs)
+                next_action = self._choose_action_from_probs(next_action_probs)
 
                 # Taxi environment requires decoding the state into the separate
                 # state variables
@@ -130,14 +132,14 @@ class SARSA(RLAgent):
         while len(test_data) < num_datapoints:
             state, _ = self.env.reset()
             action_probs = policy(state)
-            action = self.choose_action(action_probs)
+            action = self._choose_action_from_probs(action_probs)
             done = False
             total_reward = 0
 
             while not done and len(test_data) < num_datapoints:
                 next_state, reward, done, _, _ = self.env.step(action)
                 next_action_probs = policy(next_state)
-                next_action = self.choose_action(next_action_probs)
+                next_action = self._choose_action_from_probs(next_action_probs)
 
                 # Taxi environment requires decoding the state into the separate
                 # state variables
@@ -166,3 +168,16 @@ class SARSA(RLAgent):
         print("Finished generating test data...")
 
         return np.array(test_data)
+    
+    # Methods needed for estimating feature importance
+
+    def get_q_func(self):
+        return self.Q
+    
+
+    def get_optimal_action(self, state):
+        policy = self._generate_deterministic_policy()
+        next_action_probs = policy(state)
+
+        return self._choose_action_from_probs(next_action_probs)
+
