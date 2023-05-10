@@ -10,3 +10,8 @@ class RLAgent:
     def generate_test_data(self, num_datapoints):
         """ Generates random data from the trained RL agent for evaluation. """
         pass
+
+    def get_q_func(self):
+        """ Returns the learnt Q (state-action value) function for the trained
+            RL agent. """
+        pass

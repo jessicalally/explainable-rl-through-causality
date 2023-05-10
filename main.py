@@ -13,10 +13,10 @@ from rl_algorithms.DDQN import DDQN
 from structural_causal_model import StructuralCausalModel
 
 # Choose which environment to use
-env = MountainCar()
+env = Taxi()
 
 # Choose which RL algorithm to use
-rl_agent = DQN(env)
+rl_agent = SARSA(env)
 
 # Train agent from scratch
 action_influence_dataset, causal_discovery_dataset = rl_agent.train()
@@ -39,6 +39,9 @@ with open(rl_agent_path,'rb') as agent_file:
 
 with open(dataset_path, 'rb') as dataset_file:
     causal_discovery_dataset = pickle.load(dataset_file)
+
+print(rl_agent.get_q_func())
+print(rl_agent.get_optimal_action(42))
 
 # # Perform causal discovery to generate causal graph
 # method = VarLiNGAM()
