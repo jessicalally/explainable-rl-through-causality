@@ -1,6 +1,8 @@
 from collections import deque
 import networkx as nx
 import numpy as np
+import pandas as pd
+import torch
 
 class ExplanationGenerator():
     def __init__(self, env, trained_scm, trained_rl_agent):
@@ -54,7 +56,7 @@ class ExplanationGenerator():
         # TODO: measure relative feature importance of all nodes at time t towards the action decision
         # We need access here to the Q-value function of the RL agent algorithm, so something
         # from the RL agent must be passed into this class as well as the SCM
-        most_importance_feature = self._estimate_most_important_feature(state)
+        most_importance_feature = self._estimate_q_function_feature_importance(state)
         print(f"most important feature {most_importance_feature}")
 
         print(f'multistep causal chains {causal_chains}') 
@@ -78,9 +80,9 @@ class ExplanationGenerator():
             direction = 'increase' if diff > 0 else 'decrease'
 
             if idx == 0:
-                explanation += f'To {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:5.1f} to {predicted_node_value[0]:5.1f}) '
+                explanation += f'To {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value[0]:3.3f}) '
             else:
-                explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:5.1f} to {predicted_node_value[0]:5.1f}) '
+                explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value[0]:3.3f}) '
             
         explanation += 'in the next time step.\n Because:'
 
@@ -174,24 +176,56 @@ class ExplanationGenerator():
         return multi_step_causal_chains
     
 
-    def _estimate_most_important_feature(self, state):
-        # TODO: implement
-        # 0.01 for continuous features, and smallest unit for discrete features, as in paper
-        # pertubation = 0.01
-        # q_values = self.rl_agent.get_q_values()
-        # action_values = q_values(state)
-
-        # importance_vector = np.zeros(len(state))
-
-        # for idx, val in enumerate(state):
-        #     importance_vector[idx] = abs(())
-
-
-        # curr_state = q_values(state)
-        
+    def _estimate_q_function_feature_importance(self, state, pertubation=0.01):
+        # TODO: should the pertubation be relative to the state feature bounds as well?? So that we change each feature by the same percentage
+        # Without accounting for the state values, pertubation almost always causes the pole angular velocity to be the most importat state variable
+        # and sometimes the pole angle
+        # State feature bounds might not be possible because some of the bounds are infinite
+        # TODO: what about doing it relative to the current state variable value?
+        # pertubation should be 0.01 for continuous features, and smallest unit for discrete features, as in paper
+        q_values = self.rl_agent.get_q_func()
+        state_tensor = torch.DoubleTensor(state).unsqueeze(0)
+        q_state = q_values(state_tensor).cpu().data.numpy()[0]
+        action = np.argmax(q_state)
+        print(f'state {state}')
+        print(f'qstate {q_state}')
+        print(f'qstateaction {q_state[action]}')
+    
+        importance_vector = np.full(state_tensor.shape[1], q_state[action])
+        print(f'importance vector {importance_vector}')
 
         # Apply small pertubation to each state variable, and recalculate the q_values
-        return 1
+        for i in range(len(state)):
+            pertubated_state = state
+            pertubated_state[i] *= 1.0 + pertubation # Applying a 10% pertubation
+            pertubated_state_tensor = torch.DoubleTensor(pertubated_state).unsqueeze(0)
+            print(f'pertubated state {pertubated_state}')
+            updated_q_value = q_values(pertubated_state_tensor).cpu().data.numpy()[0]
+            print(f'updated q values {updated_q_value}')
+            importance_vector[i] = (abs(updated_q_value[action] - importance_vector[i]) / pertubation)
 
+        print(f"importance vector {importance_vector}")
+
+        return np.argmax(importance_vector)
     
-    
+
+    # It is not really possible to estimate the magnitude of the change when
+    # the actions are discrete.
+    # So it is just returning the index of any state variable that changes the 
+    # action
+    def _estimate_action_feature_importance(self, state, pertubation=0.1):
+        action = self.rl_agent.choose_action_deterministic(state)
+        importance_vector = np.zeros(state.shape)
+
+        # Apply small pertubation to each state variable, and recalculate the q_values
+        for i in range(len(state)):
+            pertubated_state = state
+            pertubated_state[i] += pertubation
+            new_action = self.rl_agent.choose_action_deterministic(pertubated_state)
+
+            importance_vector[i] = 1 if new_action != action else 0
+
+        print(f'action importance vector {importance_vector}')
+
+        # Picks a state variable arbitrarily that affects the chosen action
+        return np.where(importance_vector == 1)
