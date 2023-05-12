@@ -16,7 +16,7 @@ class ExplanationGenerator():
     # state [just datapoints at time t]
     # action chosen at time t
     def generate_why_explanation(self, state, action):
-        explanation = f'Do {self.env.actions[int(action)]}.\n'
+        explanation = f'{self.env.actions[int(action)]}.\n'
         
         # These are all the nodes that influence the action decision - which is right because we want 
         # to measure their feature importance in terms of choosing the action
@@ -53,9 +53,6 @@ class ExplanationGenerator():
         predicted_nodes = self.scm.predict_from_scm(datapoint)
         print(f'predicted nodes {predicted_nodes}')
 
-        # TODO: measure relative feature importance of all nodes at time t towards the action decision
-        # We need access here to the Q-value function of the RL agent algorithm, so something
-        # from the RL agent must be passed into this class as well as the SCM
         most_importance_feature = self._estimate_q_function_feature_importance(state)
         print(f"most important feature {most_importance_feature}")
 
@@ -86,26 +83,129 @@ class ExplanationGenerator():
             
         explanation += 'in the next time step.\n Because:'
 
-        visited_steps = []
+        # visited_steps = []
         
         for causal_chain in causal_chains:
             print(f'causal chain {causal_chain}')
-            for step in causal_chain:
-                if step not in visited_steps:
-                    visited_steps.append(step)
-                    print(f'step {step}')
-                    if step[-1] in self.scm.env.reward_nodes:
-                        explanation += f'{self.env.features[step[-1]]} influences the reward.'
-
+            for idx, step in enumerate(causal_chain):
+                # if step not in visited_steps:
+                    # visited_steps.append(step)
+                print(f'step {step}')
+                if step[-1] in self.scm.env.reward_nodes:
+                    if idx == 0:
+                        explanation += f'\n{self.env.features[step[-1]]} influences the reward.'
                     else:
-                        explanation += f'{self.env.features[step[-1]]} influences '
-
-        print(explanation)
+                        explanation += f'{self.env.features[step[-1]]}, which influences the reward.'
+                elif idx == 0:
+                    explanation += f'\n{self.env.features[step[-1]]} influences '
+                else:
+                    explanation += f'{self.env.features[step[-1]]}, which influences '
 
         # pd.DataFrame.from_dict(
-        #     data=explanation, # TODO: or wrap in curly set notation
+        #     data=set(explanation),
         #     orient='index').to_csv(
-        #     f'why_explanations_{self.scm.env.name}.csv',
+        #     f'why_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
+        #     mode='a',
+        #     header=False)
+
+        return explanation
+        
+
+    # Why was [counter_action] not taken at [state]?
+    #
+    # Parameters:
+    # state [just datapoints at time t]
+    # actual action chosen at time t
+    # counterfactual action to be taken at time t
+    def generate_why_not_explanation(self, state, action, counter_action):
+        explanation = f'Because it is more desirable to do {self.env.actions[int(action)]}.\n'
+
+        # These are all the nodes that have out-degree=0
+        sink_nodes = self._get_sink_nodes(self.scm.causal_graph)
+        action_node = self.scm.env.state_space # TODO: have this as its own field in env
+
+        # Generate the causal chains for a single timestep
+        head_nodes = self.scm.causal_graph.predecessors(action_node)
+        one_step_causal_chains = self._get_one_step_causal_chains(head_nodes, sink_nodes, self.scm.causal_graph)
+        print(f'one step causal chains {one_step_causal_chains}') 
+
+        causal_chains = self._generate_multistep_causal_chains(one_step_causal_chains)
+        print(f'multistep causal chains {causal_chains}')               
+
+        # Predict the values of all nodes using the trained structural equations
+        datapoint = np.zeros((self.scm.env.state_space * 2) + 1)
+        for idx, val in enumerate(state):
+            datapoint[idx] = val
+        
+        datapoint[self.scm.env.state_space] = action
+        print(f"datapoint {datapoint}")
+        predicted_nodes = self.scm.predict_from_scm(datapoint)
+        print(f'predicted nodes {predicted_nodes}')
+
+        # Predict the values of all nodes with the counterfactual action using the trained SCM
+        counter_datapoint = np.zeros((self.scm.env.state_space * 2) + 1)
+        for idx, val in enumerate(state):
+            counter_datapoint[idx] = val
+        
+        counter_datapoint[self.scm.env.state_space] = counter_action
+        print(f"counter datapoint {counter_datapoint}")
+        predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint)
+        print(f'predicted_counter_nodes {predicted_counter_nodes}')
+
+        most_importance_feature = self._estimate_q_function_feature_importance(state)
+        print(f"most important feature {most_importance_feature}")
+
+        print(f'multistep causal chains {causal_chains}') 
+
+        # Get all causal chains with this feature as head - we want to use these as explanation
+        causal_chains = [chain for chain in causal_chains if chain[0][0] == most_importance_feature]
+        print(f'relevant causal chains {causal_chains}')
+
+        # Get all nodes that are immediately affected by the current action
+        imm_nodes = {chain[0][1] for chain in causal_chains}
+        print(f'imm nodes {imm_nodes}')
+
+        # Get diff between current node value and predicted node value for
+        # the next node in the causal chain
+
+        for idx, imm_node in enumerate(imm_nodes):
+            curr_node_value = datapoint[imm_node - (self.scm.env.state_space + 1)]
+            predicted_node_value = predicted_nodes[imm_node][0]
+            predicted_counter_node_value = predicted_counter_nodes[imm_node][0]
+            diff = predicted_node_value - curr_node_value
+            # TODO: can the diff be 0
+            direction = 'increase' if diff > 0 else 'decrease'
+
+            if idx == 0:
+                explanation += f'In order to {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
+                # TODO: add the rather than case?
+            else:
+                explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
+                # TODO: add the rather than case?
+
+        # TODO: we would like to learn which variables affect the reward, and by roughly how much
+        explanation += 'in the next time step.\n Because:'
+        
+        for causal_chain in causal_chains:
+            print(f'causal chain {causal_chain}')
+            for idx, step in enumerate(causal_chain):
+                print(f'step {step}')
+                if step[-1] in self.scm.env.reward_nodes:
+                    if idx == 0:
+                        explanation += f'\n{self.env.features[step[-1]]} influences the reward.'
+                    else:
+                        explanation += f'{self.env.features[step[-1]]}, which influences the reward.'
+                elif idx == 0:
+                    explanation += f'\n{self.env.features[step[-1]]} influences '
+                else:
+                    explanation += f'{self.env.features[step[-1]]}, which influences '
+
+        return explanation
+
+        # pd.DataFrame.from_dict(
+        #     data=set(explanation),
+        #     orient='index').to_csv(
+        #     f'why_not_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
         #     mode='a',
         #     header=False)
         
@@ -197,7 +297,7 @@ class ExplanationGenerator():
         # Apply small pertubation to each state variable, and recalculate the q_values
         for i in range(len(state)):
             pertubated_state = state
-            pertubated_state[i] *= 1.0 + pertubation # Applying a 10% pertubation
+            pertubated_state[i] *= 1.0 + pertubation # Applying a 1% pertubation
             pertubated_state_tensor = torch.DoubleTensor(pertubated_state).unsqueeze(0)
             print(f'pertubated state {pertubated_state}')
             updated_q_value = q_values(pertubated_state_tensor).cpu().data.numpy()[0]
@@ -214,14 +314,14 @@ class ExplanationGenerator():
     # So it is just returning the index of any state variable that changes the 
     # action
     def _estimate_action_feature_importance(self, state, pertubation=0.1):
-        action = self.rl_agent.choose_action_deterministic(state)
+        action = self.rl_agent.get_optimal_action(state)
         importance_vector = np.zeros(state.shape)
 
         # Apply small pertubation to each state variable, and recalculate the q_values
         for i in range(len(state)):
             pertubated_state = state
             pertubated_state[i] += pertubation
-            new_action = self.rl_agent.choose_action_deterministic(pertubated_state)
+            new_action = self.rl_agent.get_optimal_action(pertubated_state)
 
             importance_vector[i] = 1 if new_action != action else 0
 
