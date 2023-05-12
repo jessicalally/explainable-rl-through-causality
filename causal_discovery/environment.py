@@ -83,8 +83,8 @@ class Cartpole(Environment):
     }
 
     actions = {
-        0: 'push cart to left',
-        1: 'push cart to right'
+        0: 'Push cart to left',
+        1: 'Push cart to right'
     }
 
     # Assumption: we cannot have any causal relationships that go backwards in
@@ -149,6 +149,41 @@ class LunarLander(Environment):
         # wind_power=15.0,
         # turbulence_power=1.5,
     )
+
+    actions = {
+        0: "Do nothing",
+        1: "Fire left orientation engine",
+        2: "Fire main engine",
+        3: "Fire right orientation engine"
+    }
+
+    features = {
+        0: 'x-coord',
+        1: 'y-coord',
+        2: 'x-velocity',
+        3: 'y-velocity',
+        4: 'angle',
+        5: 'angular velocity',
+        6: 'left leg in contact with ground',
+        7: 'right leg in contact with ground',
+        8: 'action',
+        9: 'x-coord',
+        10: 'y-coord',
+        11: 'x-velocity',
+        12: 'y-velocity',
+        13: 'angle',
+        14: 'angular velocity',
+        15: 'left leg in contact with ground',
+        16: 'right leg in contact with ground',
+    }
+
+    # Rewar equation taken from code
+    # reward = -100 * np.sqrt(state[0] * state[0] + state[1] * state[1])
+    # - 100 * np.sqrt(state[2] * state[2] + state[3] * state[3])
+    # - 100 * abs(state[4])
+    # + 10 * state[6]
+    # + 10 * state[7]
+    reward_nodes = {9, 10, 11, 12, 13, 15, 16}
 
     true_dag = np.array([
         [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
