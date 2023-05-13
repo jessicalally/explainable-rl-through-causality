@@ -1,34 +1,38 @@
 from causal_discovery.environment import *
 from causal_discovery.method import *
+from explanation_generation import ExplanationGenerator
 import causal_discovery
 import evaluation
 import os
 import numpy as np
 import dill as pickle
+from random import choice
 from rl_algorithms.SARSA import SARSA
 from rl_algorithms.policy_gradient import PolicyGradient
+from rl_algorithms.DQN import DQN
+from rl_algorithms.DDQN import DDQN
 from structural_causal_model import StructuralCausalModel
 
 # Choose which environment to use
-# env = Taxi()
-env = Cartpole()
+# env = Cartpole()
+env = LunarLander()
 
 # Choose which RL algorithm to use
+# rl_agent = DDQN(env, gamma = 0.99, epsilon = 1.0, epsilon_decay = 0.99, batch_size = 512, lr = 0.01)
+rl_agent = DDQN(env)
+
 # Train agent from scratch
-# rl_agent = SARSA(env)
-rl_agent = PolicyGradient(env)
-action_influence_dataset, causal_discovery_dataset = rl_agent.train()
-print(causal_discovery_dataset.shape)
-print(causal_discovery_dataset)
+# action_influence_dataset, causal_discovery_dataset = rl_agent.train(reward_threshold=495)
+# action_influence_dataset, causal_discovery_dataset = rl_agent.train()
 
-rl_agent_path = "trained_rl_agents/pg.pickle"
-# os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
+rl_agent_path = f"trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
-dataset_path = "causal_discovery_dataset/cartpole_pg.pickle"
-# os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
+dataset_path = f"causal_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
 
 # with open(rl_agent_path, 'wb') as agent_file:
-#     pickle.dump(rl_agent,agent_file)
+#     pickle.dump(rl_agent, agent_file)
 
 # with open(dataset_path, 'wb') as dataset_file:
 #     pickle.dump(causal_discovery_dataset, dataset_file)
@@ -53,14 +57,13 @@ learned_causal_graph = nx.from_numpy_matrix(
             causal_matrix_with_assumptions, create_using=nx.MultiDiGraph())
 
 # Train structural causal model
-
 scm = StructuralCausalModel(
     env,
     causal_discovery_dataset,
     # learned_causal_graph
 )
 
-scm.train()
+# scm.train()
 
 # Evaluation
 num_datapoints = 10000
@@ -80,6 +83,13 @@ print("MSE=" + str(mse))
 print("Correct action predictions=" + str(action_predictions))
 
 # Processing explanations
-# why_explanations, why_not_explanations = scm.process_explanations(test_data)
-# print(f'why explanations: {why_explanations}')
-# print(f'why not explanations: {why_not_explanations}')
+explanation_generator = ExplanationGenerator(env, scm, rl_agent)
+for i in range(10):
+    example_state = test_data[i][:env.state_space]
+    example_action = test_data[i][env.state_space]
+    example_counter_action = choice([i for i in range(env.action_space) if i != example_action])
+    why_explanation = explanation_generator.generate_why_explanation(example_state, example_action)
+    print(f'Why {env.actions[example_action]}?\n {why_explanation}')
+
+    why_not_explanation = explanation_generator.generate_why_not_explanation(example_state, example_action, example_counter_action)
+    print(f'Why not {env.actions[example_counter_action]}?\n {why_not_explanation}')

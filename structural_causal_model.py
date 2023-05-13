@@ -115,22 +115,22 @@ class StructuralCausalModel:
             num_epochs=num_epochs,
             shuffle=shuffle)
 
-    def predict_from_scm(self, structural_equations, test_data):
+    def predict_from_scm(self, test_data):
         predict_y = {}
 
-        for node in structural_equations:
+        for node in self.structural_equations:
             predecessors = self.causal_graph.predecessors(node)
 
             x_data = test_data[list(predecessors)]
-            pred = structural_equations[node]['function'].predict(
+            pred = self.structural_equations[node]['function'].predict(
                 input_fn=self.get_predict_fn(
                     x_data, num_epochs=1, n_batch=128, shuffle=False))
 
-            if structural_equations[node]['type'] == 'state':
+            if self.structural_equations[node]['type'] == 'state':
                 predict_y[node] = np.array(
                     [item['predictions'][0] for item in pred])
             else:
-                assert (structural_equations[node]['type'] == 'action')
+                assert (self.structural_equations[node]['type'] == 'action')
 
                 predict_y[node] = np.array(
                     [np.argmax(item['probabilities']) for item in pred])
@@ -160,7 +160,7 @@ class StructuralCausalModel:
         why_explanations = {}
         why_not_explanations = {}
 
-        for agent_step in range(0, 1, 10):
+        for agent_step in range(0, 10, 10):
             print(str(agent_step) + "/" + str(len(data_set)))
 
             datapoint = data_set[agent_step]
@@ -177,24 +177,24 @@ class StructuralCausalModel:
             
             # Generate Why not B? counterfactual questions
             # Get all possible counterfactual actions
-            poss_counter_actions = set(range(0, self.env.action_space)).difference({action})
-            print(f'possible counter actions = {poss_counter_actions}')
+            # poss_counter_actions = set(range(0, self.env.action_space)).difference({action})
+            # print(f'possible counter actions = {poss_counter_actions}')
 
-            for counter_action in poss_counter_actions:
-                why_not_explanations[(agent_step, action, counter_action)] = {'state': datapoint[:self.env.state_space], 
-                                                        'why_not_exps': self.generate_counterfactual_explanations(self.env.causal_graph, self.structural_equations, datapoint, action, counter_action)}
+            # for counter_action in poss_counter_actions:
+            #     why_not_explanations[(agent_step, action, counter_action)] = {'state': datapoint[:self.env.state_space], 
+            #                                             'why_not_exps': self.generate_counterfactual_explanations(self.env.causal_graph, self.structural_equations, datapoint, action, counter_action)}
 
         pd.DataFrame.from_dict(
             data=why_explanations,
             orient='index').to_csv(
-            'why_explanations_taxi.csv',
+            f'why_explanations_{self.env.name}.csv',
             mode='a',
             header=False)
         
         pd.DataFrame.from_dict(
             data=why_not_explanations,
             orient='index').to_csv(
-            'why_not_explanations_taxi.csv',
+            f'why_not_explanations_{self.env.name}.csv',
             mode='a',
             header=False)
         
@@ -239,7 +239,7 @@ class StructuralCausalModel:
         causal_chains = self.get_causal_chains(head_nodes, sink_nodes, causal_graph)
 
         # Predict the values of state variables in these causal chains using the SCM at the action taken (Why A?)
-        predicted_nodes = self.predict_from_scm(structural_equations, datapoint)
+        predicted_nodes = self.predict_from_scm(datapoint)
 
         # Generate minimally complete tuples
 
@@ -274,15 +274,25 @@ class StructuralCausalModel:
             min_tuple_noop_transition = self.get_minimally_complete_tuples(
                 causal_chain, noop_transition)
                 
-                # TODO: we want to remove those tuples with state variables between t and t+1
-                # that actually did not change, so we can have just those action explanations
-                # for variables that changed!
+            # TODO: we want to remove those tuples with state variables between t and t+1
+            # that actually did not change, so we can have just those action explanations
+            # for variables that changed!
 
-                # Generate explanation text
+            # Generate explanation text
 
-            explanation = explanations.taxi_generate_why_text_explanations(
-                min_tuple_noop_transition,
-                min_tuple_optimal_transition, actual_action)
+            if self.env.name == "taxi":
+                explanation = explanations.taxi_generate_why_text_explanations(
+                                min_tuple_noop_transition,
+                                min_tuple_optimal_transition, actual_action
+                            )
+            
+            elif self.env.name == "cartpole":
+                explanation = explanations.generate_why_text_explanations(
+                    self.env,
+                    min_tuple_noop_transition,
+                    min_tuple_optimal_transition,
+                    actual_action
+                )
             
             print(explanation + "\n")
             why_exps.add(explanation)
@@ -309,8 +319,8 @@ class StructuralCausalModel:
         optimal_transition[self.env.state_space] = actual_action
         counterfactual_transition[self.env.state_space] = counter_action
 
-        predicted_optimal_nodes = self.predict_from_scm(structural_equations, optimal_transition)
-        predicted_counterfactual_nodes = self.predict_from_scm(structural_equations, counterfactual_transition)
+        predicted_optimal_nodes = self.predict_from_scm(optimal_transition)
+        predicted_counterfactual_nodes = self.predict_from_scm(counterfactual_transition)
 
         for causal_chain in causal_chains:
             # Get predicted values for all nodes in the causal chain

@@ -5,7 +5,6 @@ import torch.optim as optim
 import torch.nn.functional as F
 import torch.distributions as distributions
 from .rl_agent import RLAgent
-import gym
 import copy
 
 # Tuned to Cartpole environment, as in:
@@ -14,6 +13,7 @@ import copy
 
 
 class PolicyGradient(RLAgent):
+    name = "pg"
 
     class MLP(nn.Module):
         def __init__(self, input_dim, hidden_dim, output_dim, dropout=0.5):
@@ -113,6 +113,8 @@ class PolicyGradient(RLAgent):
             steps = 0
             episode_reward = 0
             log_prob_actions = []
+            states = []
+            actions = []
             rewards = []
             done = False
 
@@ -235,3 +237,16 @@ class PolicyGradient(RLAgent):
         print('Finished Policy Gradient...')
 
         return np.array(causal_discovery_data_set)
+    
+
+    def get_q_func(self):
+        # TODO: can we use the action probabilities as an approximation?
+        pass
+    
+
+    def get_optimal_action(self, state):
+        action_prediction = self.policy(torch.DoubleTensor(state))
+        action_probability = F.softmax(action_prediction, dim=-1)
+        dist = distributions.Categorical(action_probability)
+
+        return dist.sample()
