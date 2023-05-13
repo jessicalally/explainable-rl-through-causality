@@ -12,8 +12,6 @@ from .rl_agent import RLAgent
 # [Explainable Reinforcement Learning Through a Causal Lens]
 # https://arxiv.org/abs/1905.10958
 
-# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
 
 class DDQN(RLAgent):
 
@@ -59,7 +57,7 @@ class DDQN(RLAgent):
             return self.fc3(x)
 
 
-    def __init__(self, environment):
+    def __init__(self, environment, gamma = 0.99, epsilon = 1.0, epsilon_decay = 0.996, batch_size = 128, lr = 0.001):
         self.name = "ddqn"
         
         # Environment
@@ -83,11 +81,11 @@ class DDQN(RLAgent):
         self.optimizer = optim.Adam(self.q_func.parameters(), lr=self.lr)
 
 
-    def save(self, state, action, reward, new_state, done):
+    def _save(self, state, action, reward, new_state, done):
         # self.memory.trans_counter += 1
         self.replay_buffer.save(state, action, reward, new_state, done)
 
-    def choose_action(self, state):
+    def _choose_action(self, state):
         # state = state[np.newaxis, :]
         rand = np.random.random()
         state = torch.DoubleTensor(state).unsqueeze(0)
@@ -99,9 +97,9 @@ class DDQN(RLAgent):
             return np.argmax(action_values.cpu().data.numpy())
         else:
             # exploring: return a random action
-            return np.random.choice([i for i in range(4)])
+            return np.random.choice([i for i in range(self.action_space)])
         
-    def choose_action_deterministic(self, state):
+    def _choose_action_deterministic(self, state):
         state = torch.DoubleTensor(state).unsqueeze(0)
 
         self.q_func.eval()
@@ -109,11 +107,11 @@ class DDQN(RLAgent):
 
         return np.argmax(action_values.cpu().data.numpy())
 
-    def reduce_epsilon(self):
+    def _reduce_epsilon(self):
         self.epsilon = self.epsilon*self.epsilon_decay if self.epsilon > \
                        self.min_epsilon else self.min_epsilon  
         
-    def learn(self):
+    def _learn(self):
         if self.replay_buffer.trans_counter < self.batch_size: # wait before you start learning
             return
             
@@ -137,13 +135,13 @@ class DDQN(RLAgent):
                 target_param.data.copy_(local_param.data)
                 
         # 5. Reduce the exploration rate
-        self.reduce_epsilon()
+        self._reduce_epsilon()
         
-    def save_model(self, path):
+    def _save_model(self, path):
         torch.save(self.q_func.state_dict(), path)
         torch.save(self.q_func.state_dict(), path+'.target')
 
-    def load_saved_model(self, path):
+    def _load_saved_model(self, path):
         self.q_func = self.QNN(8, 4, 42)
         self.q_func.load_state_dict(torch.load(path))
         self.q_func.eval()
@@ -171,9 +169,9 @@ class DDQN(RLAgent):
             steps = 0
 
             while not (terminated or truncated):
-                action = self.choose_action(state)
+                action = self._choose_action(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(action)
-                self.save(state, action, reward, next_state, terminated)
+                self._save(state, action, reward, next_state, terminated)
 
                 causal_discovery_dataset.append(np.concatenate(
                     (state, np.array(action), next_state), axis=None))
@@ -184,7 +182,7 @@ class DDQN(RLAgent):
                 state = next_state
 
                 if steps > 0 and steps % LEARN_EVERY == 0:
-                    self.learn()
+                    self._learn()
 
                 steps += 1
                 score += reward
@@ -214,8 +212,8 @@ class DDQN(RLAgent):
             state, _ = self.env.reset()
 
             while not (terminated or truncated):
-                action = self.choose_action_deterministic(state)
-                next_state, reward, terminated, truncated, _ = self.env.step(action)
+                action = self._choose_action_deterministic(state)
+                next_state, _, terminated, truncated, _ = self.env.step(action)
 
                 test_data.append(np.concatenate(
                     (state, np.array(action), next_state), axis=None))
@@ -231,9 +229,10 @@ class DDQN(RLAgent):
     # Methods needed for estimating feature importance
 
     def get_q_func(self):
+        self.q_func.eval()
         return self.q_func
     
 
     def get_optimal_action(self, state):
-        return self.choose_action_deterministic(state)
+        return self._choose_action_deterministic(state)
 
