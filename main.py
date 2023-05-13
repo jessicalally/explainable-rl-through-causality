@@ -63,7 +63,7 @@ scm = StructuralCausalModel(
     # learned_causal_graph
 )
 
-scm.train()
+# scm.train()
 
 # Evaluation
 num_datapoints = 10000
