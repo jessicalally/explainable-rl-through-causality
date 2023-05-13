@@ -41,15 +41,16 @@ class Cartpole(Environment):
     env = gym.make('CartPole-v1')
 
     true_dag = np.array([
-        [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = pos t
-        [0, 0, 0, 0, 1, 1, 1, 0, 0],  # 1 = velocity t
-        [0, 0, 0, 0, 1, 0, 0, 1, 0],  # 2 = pole angle t
-        [0, 0, 0, 0, 1, 0, 0, 1, 1],  # 3 = angular velocity t
-        [0, 0, 0, 0, 0, 1, 1, 1, 1],  # 4 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = pos t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = pole angle t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0]  # 8 = angular t+1
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],  # 0 = pos t
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],  # 1 = velocity t
+        [0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 2 = pole angle t
+        [0, 0, 0, 0, 1, 0, 0, 1, 1, 0],  # 3 = angular velocity t
+        [0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  # 4 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 5 = pos t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = pole angle t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = angular t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 9 = reward t+1
     ])
 
     # TODO: these are the nodes that directly impact the reward
@@ -63,11 +64,13 @@ class Cartpole(Environment):
         'angle(t)',
         'ang-velo(t)',
         'action(t)',
+        'reward(t)',
         'pos(t-1)',
         'velo(t-1)',
         'angle(t-1)',
         'ang-velo(t-1)',
-        'action(t-1)']
+        'action(t-1)',
+        'reward(t-1)']
     
 
     features = {
@@ -79,7 +82,8 @@ class Cartpole(Environment):
         5: 'cart position',
         6: 'cart velocity',
         7: 'pole angle',
-        8: 'pole angular velocity'
+        8: 'pole angular velocity',
+        9: 'reward',
     }
 
     actions = {
@@ -114,6 +118,22 @@ class Cartpole(Environment):
         (8, 2),
         (8, 3),
         (8, 4),
+        # reward does not have an affect on the state
+        (9, 0),
+        (9, 1),
+        (9, 2),
+        (9, 3),
+        (9, 4),
+        (9, 5),
+        (9, 6),
+        (9, 7),
+        (9, 8),
+        # past state can't affect reward
+        (0, 9),
+        (1, 9),
+        (2, 9),
+        (3, 9),
+        (4, 9),
     ]
 
     # Assumption: all past state variables affect action choice and action

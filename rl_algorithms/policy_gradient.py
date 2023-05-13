@@ -119,6 +119,7 @@ class PolicyGradient(RLAgent):
             done = False
 
             state, _ = self.env.reset()
+            prev_reward = 0
 
             while not done:
                 steps += 1
@@ -138,12 +139,13 @@ class PolicyGradient(RLAgent):
                 rewards.append(reward)
 
                 datapoint = np.concatenate(
-                    (state, np.array(chosen_action), next_state), axis=None)
+                    (state, np.array(chosen_action), np.array(prev_reward), next_state), axis=None)
                 causal_discovery_data_set.append(datapoint)
                 action_influence_data_set.append(
                     (state, chosen_action, reward, next_state))
 
                 state = next_state
+                prev_reward = reward
 
             log_prob_actions = torch.stack(log_prob_actions)
 
@@ -191,6 +193,7 @@ class PolicyGradient(RLAgent):
             done = False
 
             state, _ = self.env.reset()
+            prev_reward = 0
 
             while not done and len(causal_discovery_data_set) < num_datapoints:
                 steps += 1
@@ -210,10 +213,11 @@ class PolicyGradient(RLAgent):
                 rewards.append(reward)
 
                 datapoint = np.concatenate(
-                    (state, np.array(chosen_action), next_state), axis=None)
+                    (state, np.array(chosen_action), np.array(prev_reward), next_state), axis=None)
                 causal_discovery_data_set.append(datapoint)
 
                 state = next_state
+                prev_reward = reward
 
             test_reward = self.evaluate()
 
@@ -227,12 +231,8 @@ class PolicyGradient(RLAgent):
                 print(
                     f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
 
-            if mean_test_rewards >= reward_threshold:
-                print(test_rewards[-5:])
-                print(f'Reached reward threshold in {episode} episodes')
-                break
-
             episode += 1
+            print(f'Num datapoints collected so far: {len(causal_discovery_data_set)}')
 
         print('Finished Policy Gradient...')
 

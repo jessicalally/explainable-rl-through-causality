@@ -152,7 +152,7 @@ class VarLiNGAM(Method):
         threshold = 0.3
 
         # Reshape data as VarLiNGAM currently requires a different CSV structure
-        # than the other algorithms (rows of state + action)
+        # than the other algorithms (rows of state + action + reward)
         data = data[:, :-env.state_space]
 
         model = VARLiNGAM()
@@ -172,10 +172,12 @@ class VarLiNGAM(Method):
             ]
         )
 
-        # Delete the last column and row from causal matrix, as this represents
-        # the causal relationships connected to the next action, which we do not
-        # have in the true dag
-        causal_matrix = causal_matrix[:-1, :-1]
+        # TODO: explain this
+        causal_matrix = np.delete(causal_matrix, len(causal_matrix)-1, axis=0)
+        causal_matrix = np.delete(causal_matrix, len(causal_matrix)-1, axis=1)
+        causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=0)
+        causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=1)
+
         causal_matrix = self.threshold(causal_matrix, threshold)
 
         if with_assumptions:
