@@ -89,7 +89,8 @@ class QLearning(RLAgent):
 
     # TODO: we want this test data to be more random
 
-    def generate_test_data(self, env, q_table, episodes=10):
+    def generate_test_data_for_causal_discovery(
+            self, env, q_table, episodes=10):
         test_data = []
 
         print('Generating Q-learning test data...')

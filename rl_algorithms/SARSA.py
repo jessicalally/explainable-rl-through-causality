@@ -12,7 +12,7 @@ from .rl_agent import RLAgent
 class SARSA(RLAgent):
     def __init__(self, environment):
         self.name = "sarsa"
-        
+
         # Environment
         self.env = environment.env
         self.test_env = copy.deepcopy(self.env)
@@ -119,10 +119,11 @@ class SARSA(RLAgent):
 
         print('Finished SARSA Algorithm...')
 
-        return np.array(action_influence_dataset), np.array(causal_discovery_dataset)
+        return np.array(action_influence_dataset), np.array(
+            causal_discovery_dataset)
 
     # Generates datapoints from the trained RL agent
-    def generate_test_data(self, num_datapoints):
+    def generate_test_data_for_causal_discovery(self, num_datapoints):
         test_data = []
         policy = self._generate_deterministic_policy()
         episode = 0
@@ -168,16 +169,14 @@ class SARSA(RLAgent):
         print("Finished generating test data...")
 
         return np.array(test_data)
-    
+
     # Methods needed for estimating feature importance
 
     def get_q_func(self):
         return self.Q
-    
 
     def get_optimal_action(self, state):
         policy = self._generate_deterministic_policy()
         next_action_probs = policy(state)
 
         return self._choose_action_from_probs(next_action_probs)
-
