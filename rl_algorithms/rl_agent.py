@@ -15,3 +15,8 @@ class RLAgent:
         """ Returns the learnt Q (state-action value) function for the trained
             RL agent. """
         pass
+
+    def get_optimal_action(self, state):
+        """ Returns the optimal action learnt by the trained agent for the given
+            state. """
+        pass
