@@ -52,6 +52,11 @@ class Cartpole(Environment):
         [0, 0, 0, 0, 0, 0, 0, 0, 0]  # 8 = angular t+1
     ])
 
+    # TODO: these are the nodes that directly impact the reward
+    # TODO: can we generate these automatically???
+    # cart pos and pole angle 
+    reward_nodes = {5, 7}
+
     labels = [
         'pos(t)',
         'velo(t)',
@@ -63,6 +68,24 @@ class Cartpole(Environment):
         'angle(t-1)',
         'ang-velo(t-1)',
         'action(t-1)']
+    
+
+    features = {
+        0: 'cart position',
+        1: 'cart velocity',
+        2: 'pole angle',
+        3: 'pole angular velocity',
+        4: 'action',
+        5: 'cart position',
+        6: 'cart velocity',
+        7: 'pole angle',
+        8: 'pole angular velocity'
+    }
+
+    actions = {
+        0: 'Push cart to left',
+        1: 'Push cart to right'
+    }
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -120,12 +143,47 @@ class LunarLander(Environment):
 
     env = gym.make(
         "LunarLander-v2",
-        continuous=False,
-        gravity=-10.0,
-        enable_wind=False,
-        wind_power=15.0,
-        turbulence_power=1.5,
+        # continuous=False,
+        # gravity=-10.0,
+        # enable_wind=False,
+        # wind_power=15.0,
+        # turbulence_power=1.5,
     )
+
+    actions = {
+        0: "Do nothing",
+        1: "Fire left orientation engine",
+        2: "Fire main engine",
+        3: "Fire right orientation engine"
+    }
+
+    features = {
+        0: 'x-coord',
+        1: 'y-coord',
+        2: 'x-velocity',
+        3: 'y-velocity',
+        4: 'angle',
+        5: 'angular velocity',
+        6: 'left leg in contact with ground',
+        7: 'right leg in contact with ground',
+        8: 'action',
+        9: 'x-coord',
+        10: 'y-coord',
+        11: 'x-velocity',
+        12: 'y-velocity',
+        13: 'angle',
+        14: 'angular velocity',
+        15: 'left leg in contact with ground',
+        16: 'right leg in contact with ground',
+    }
+
+    # Rewar equation taken from code
+    # reward = -100 * np.sqrt(state[0] * state[0] + state[1] * state[1])
+    # - 100 * np.sqrt(state[2] * state[2] + state[3] * state[3])
+    # - 100 * abs(state[4])
+    # + 10 * state[6]
+    # + 10 * state[7]
+    reward_nodes = {9, 10, 11, 12, 13, 15, 16}
 
     true_dag = np.array([
         [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t

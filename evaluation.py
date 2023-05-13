@@ -4,7 +4,7 @@ import numpy as np
 # TODO: need to be careful between discrete and continuous states, since we're
 # learning on discrete bins
 
-
+# TODO: restructure this for the new causal graph format?
 def task_prediction(test_data, action_influence_model):
     trained_structural_equations = action_influence_model.structural_equations
     num_correct_action_predictions = 0
@@ -63,7 +63,6 @@ def evaluate_fidelity(scm, test_data, num_test_points=100):
 
     for test_case in range(num_test_points):
         predicted_nodes = scm.predict_from_scm(
-            trained_structural_equations,
             test_data[test_case],
         )
 
