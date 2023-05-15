@@ -28,6 +28,7 @@ class DQN():
 
     def __init__(self, environment):
         super(DQN, self).__init__()
+        self.name = "dqn"
         self.env = environment.env
         self.state_space = environment.state_space
         self.action_space = environment.action_space
