@@ -6,15 +6,25 @@ import gym
 
 
 class Environment(object):
+    name = None
     state_space = None
     action_space = None
     env = None
     true_dag = None
+    action_node = 4
+    reward_node = 9
+
     # TODO: currently needed for VarLiNGAM DAG plots, find a better way to
     # generalise for all methods
     labels = None
+    features = None
+    actions = None
     forbidden_edges = []
     required_edges = []
+
+    def __init__(self):
+        self.causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
 
     @staticmethod
     def get_env(env):
@@ -53,10 +63,8 @@ class Cartpole(Environment):
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 9 = reward t+1
     ])
 
-    # TODO: these are the nodes that directly impact the reward
-    # TODO: can we generate these automatically???
-    # cart pos and pole angle 
-    reward_nodes = {5, 7}
+    action_node = 4
+    reward_node = 9
 
     labels = [
         'pos(t)',
@@ -71,7 +79,6 @@ class Cartpole(Environment):
         'ang-velo(t-1)',
         'action(t-1)',
         'reward(t-1)']
-    
 
     features = {
         0: 'cart position',
@@ -149,10 +156,6 @@ class Cartpole(Environment):
         (4, 8),
     ]
 
-    def __init__(self):
-        self.causal_graph = nx.from_numpy_matrix(
-            self.true_dag, create_using=nx.MultiDiGraph())
-
 
 ##### Lunar Lander #####
 
@@ -205,30 +208,28 @@ class LunarLander(Environment):
     # + 10 * state[7]
     reward_nodes = {9, 10, 11, 12, 13, 15, 16}
 
+    action_node = 8
+    reward_node = 17
+
     true_dag = np.array([
-        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
-        [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],  # 1 = y coord t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0],  # 2 = x velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0],  # 3 = y velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],  # 4 = angle t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-            1, 1, 0, 0],  # 5 = angular velocity t
-        # 6 = left leg in contact with ground t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        # 7 = right leg in contact with ground t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],  # 8 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # 9 = x coord t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # 10 = y coord t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = x velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = y velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = angle t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0],  # 14 = angular velocity t+1
-        # 15 = left leg in contact with ground t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        # 16 = right leg in contact with ground t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # 1 = y coord t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],  # 2 = x velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0],  # 3 = y velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 4 = angle t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 5 = angular velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = left leg in contact with ground t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = right leg in contact with ground t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],  # 8 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 9 = x coord t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 10 = y coord t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 11 = x velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 12 = y velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 13 = angle t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = angular velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 15 = left leg in contact with ground t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 16 = right leg in contact with ground t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]   # 17 = reward
     ])
 
     labels = [
@@ -334,7 +335,36 @@ class LunarLander(Environment):
         (16, 6),
         (16, 7),
         (16, 8),
-        (16, 9)
+        (16, 9),
+
+        # Specific reward assumptions
+        (17, 0),
+        (17, 1),
+        (17, 2),
+        (17, 3),
+        (17, 4),
+        (17, 5),
+        (17, 6),
+        (17, 7),
+        (17, 8),
+        (17, 9),
+        (17, 10),
+        (17, 11),
+        (17, 12),
+        (17, 13),
+        (17, 14),
+        (17, 15),
+        (17, 16),
+        (17, 17),
+        (0, 17),
+        (1, 17),
+        (2, 17),
+        (3, 17),
+        (4, 17),
+        (5, 17),
+        (6, 17),
+        (7, 17),
+        (8, 17),
     ]
 
     # Assumption: all past state variables affect action choice and action
@@ -420,7 +450,6 @@ class MountainCar(Environment):
     def __init__(self):
         self.causal_graph = nx.from_numpy_matrix(
             self.true_dag, create_using=nx.MultiDiGraph())
-
 
 
 #### Taxi ####
