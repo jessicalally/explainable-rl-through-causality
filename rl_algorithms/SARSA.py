@@ -55,7 +55,7 @@ class SARSA(RLAgent):
 
         return policy_fn
 
-    def train(self, episodes=50000, reward_threshold=10):
+    def train(self, episodes=100000, reward_threshold=10):
         causal_discovery_dataset = []
         action_influence_dataset = []
 

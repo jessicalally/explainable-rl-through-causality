@@ -76,7 +76,8 @@ class DDQN(RLAgent):
             epsilon=1.0,
             epsilon_decay=0.996,
             batch_size=128,
-            lr=0.001):
+            lr=0.001,
+            reward_threshold=100):
         self.name = "ddqn"
 
         # Environment
@@ -84,13 +85,14 @@ class DDQN(RLAgent):
         self.test_env = copy.deepcopy(self.env)
         self.action_space = environment.action_space
         self.state_space = environment.state_space
+        self.reward_threshold = reward_threshold
 
         # Hyperparameters
-        self.gamma = 0.99
-        self.epsilon = 1.0
-        self.epsilon_decay = 0.996
-        self.batch_size = 128
-        self.lr = 0.001
+        self.gamma = gamma
+        self.epsilon = epsilon
+        self.epsilon_decay = epsilon_decay
+        self.batch_size = batch_size
+        self.lr = lr
         self.min_epsilon = 0.01
         self.buffer_size = 100000
         self.replay_buffer = self.MemoryBuffer(self.buffer_size)
@@ -171,7 +173,7 @@ class DDQN(RLAgent):
         self.q_func_target.load_state_dict(torch.load(path + '.target'))
         self.q_func_target.eval()
 
-    def train(self, episodes=2000, reward_threshold=100):
+    def train(self, episodes=2000):
         causal_discovery_dataset = []
         action_influence_dataset = []
 
@@ -214,7 +216,7 @@ class DDQN(RLAgent):
             avg_score = np.mean(scores[max(0, e - 100):(e + 1)])
             print("episode: {}/{}, score: {}".format(e, episodes, avg_score))
 
-            if avg_score > reward_threshold:
+            if avg_score > self.reward_threshold:
                 break
 
         print('Finished DDQN Algorithm...')

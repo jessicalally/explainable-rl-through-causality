@@ -60,7 +60,8 @@ def get_rl_algorithm(args, env):
                 epsilon=1.0,
                 epsilon_decay=0.99,
                 batch_size=512,
-                lr=0.01
+                lr=0.01,
+                reward_threshold=495
             )
         return DDQN(env)
     elif args.rl == "sarsa":
@@ -127,7 +128,10 @@ def main(args):
     learned_causal_graph, met = causal_discovery(causal_discovery_dataset, env)
 
     metrics_path = f"output/metrics/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
+
     causal_graph_path = f"output/causal_graph/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(causal_graph_path), exist_ok=True)
 
     with open(metrics_path, 'wb') as metrics_file:
         pickle.dump(met, metrics_file)
@@ -158,6 +162,7 @@ def main(args):
     scm.train()
 
     scm_path = f"output/scm/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_path), exist_ok=True)
 
     with open(scm_path, 'wb') as scm_file:
         pickle.dump(scm, scm_file)

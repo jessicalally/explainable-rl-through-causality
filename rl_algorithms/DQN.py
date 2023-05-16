@@ -26,7 +26,7 @@ class Net(nn.Module):
 
 class DQN():
 
-    def __init__(self, environment):
+    def __init__(self, environment, reward_threshold=-180):
         super(DQN, self).__init__()
         self.name = "dqn"
         self.env = environment.env
@@ -36,6 +36,7 @@ class DQN():
             self.state_space, self.action_space), Net(
             self.state_space, self.action_space)
         self.loss_func = nn.MSELoss()
+        self.reward_threshold = reward_threshold
 
         # Hyperparameters
         self.capacity = 8000
@@ -106,11 +107,11 @@ class DQN():
         scores = []
         for i_ep in range(num_episodes):
             episode_score = 0
-            state = self.env.reset()
+            state, _ = self.env.reset()
 
             for t in range(10000):
                 action = self.select_action(state)
-                next_state, reward, done, _ = self.env.step(action)
+                next_state, reward, done, _, _ = self.env.step(action)
                 causal_discovery_dataset.append(np.concatenate(
                     (state, np.array(action), next_state), axis=None))
                 episode_score += reward
@@ -128,7 +129,7 @@ class DQN():
             avg_score = np.mean(scores[-10:])
             print("episode: {}/{}, score: {}".format(i_ep, num_episodes, avg_score))
 
-            if avg_score > -180:
+            if avg_score > self.reward_threshold:
                 break
 
         print("finished")
@@ -141,12 +142,12 @@ class DQN():
         print('Generating test data for DQN algorithm...')
 
         while len(test_data) < num_datapoints:
-            state = self.env.reset()
+            state, _ = self.env.reset()
             prev_reward = 0
 
             for _ in range(10000):
                 action = self.select_action(state)
-                next_state, reward, done, _ = self.env.step(action)
+                next_state, reward, done, _, _ = self.env.step(action)
 
                 test_data.append(
                         np.concatenate(
@@ -174,11 +175,11 @@ class DQN():
         print('Generating test data for DQN algorithm...')
 
         while len(test_data) < num_datapoints:
-            state = self.env.reset()
+            state, _ = self.env.reset()
 
             for _ in range(10000):
                 action = self.select_action(state)
-                next_state, reward, done, _ = self.env.step(action)
+                next_state, reward, done, _, _ = self.env.step(action)
 
                 test_data.append(
                     np.concatenate(
