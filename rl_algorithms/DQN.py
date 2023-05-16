@@ -57,6 +57,14 @@ class DQN():
         if np.random.rand(1) >= 0.9:  # epslion greedy
             action = np.random.choice(range(self.action_space), 1).item()
         return action
+    
+    def select_action_deterministic(self, state):
+        state = torch.tensor(state, dtype=torch.float64).unsqueeze(0)
+        value = self.act_net(state)
+        _, index = torch.max(value, 1)
+        action = index.item()
+
+        return action
 
     def store_transition(self, transition):
         index = self.memory_count % self.capacity
@@ -126,3 +134,64 @@ class DQN():
         print("finished")
 
         return causal_discovery_dataset
+    
+    def generate_test_data_for_causal_discovery(self, num_datapoints):
+        test_data = []
+
+        print('Generating test data for DQN algorithm...')
+
+        while len(test_data) < num_datapoints:
+            state = self.env.reset()
+            prev_reward = 0
+
+            for _ in range(10000):
+                action = self.select_action_deterministic(state)
+                next_state, reward, done, _ = self.env.step(action)
+
+                test_data.append(
+                        np.concatenate(
+                            (state,
+                            np.array(action),
+                                np.array(prev_reward),
+                                next_state),
+                            axis=None))
+                
+                prev_reward = reward
+
+                if done:
+                    print("Number of datapoints collected so far: {}".format(len(test_data)))
+                    break
+
+
+        print('Finished generating test data for DDQN Algorithm...')
+
+        return np.array(test_data)
+    
+
+    def generate_test_data_for_scm(self, num_datapoints):
+        test_data = []
+
+        print('Generating test data for DQN algorithm...')
+
+        while len(test_data) < num_datapoints:
+            state = self.env.reset()
+
+            for _ in range(10000):
+                action = self.select_action_deterministic(state)
+                next_state, reward, done, _ = self.env.step(action)
+
+                test_data.append(
+                    np.concatenate(
+                        (state,
+                         np.array(action),
+                            next_state,
+                            np.array(reward)),
+                        axis=None))
+
+                if done:
+                    print("Number of datapoints collected so far: {}".format(len(test_data)))
+                    break
+
+        print('Finished generating test data for DQN Algorithm...')
+
+        return np.array(test_data)
