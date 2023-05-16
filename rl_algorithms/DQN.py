@@ -145,7 +145,7 @@ class DQN():
             prev_reward = 0
 
             for _ in range(10000):
-                action = self.select_action_deterministic(state)
+                action = self.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
 
                 test_data.append(
@@ -177,7 +177,7 @@ class DQN():
             state = self.env.reset()
 
             for _ in range(10000):
-                action = self.select_action_deterministic(state)
+                action = self.select_action(state)
                 next_state, reward, done, _ = self.env.step(action)
 
                 test_data.append(
