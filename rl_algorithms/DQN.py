@@ -196,3 +196,16 @@ class DQN():
         print('Finished generating test data for DQN Algorithm...')
 
         return np.array(test_data)
+    
+    # Methods needed for estimating feature importance
+
+    # act_net represents the learnt policy
+    def get_q_values(self, state):
+        state = torch.tensor(state, dtype=torch.float64).unsqueeze(0)
+        q_values = self.act_net(state)
+
+        return q_values
+
+
+    def get_optimal_action(self, state):
+        return self.select_action_deterministic(state)

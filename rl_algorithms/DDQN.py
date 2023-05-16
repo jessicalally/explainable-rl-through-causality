@@ -290,9 +290,13 @@ class DDQN(RLAgent):
 
     # Methods needed for estimating feature importance
 
-    def get_q_func(self):
-        self.q_func.eval()
-        return self.q_func
+    def get_q_values(self, state):
+        q_func = self.q_func.eval()
+
+        state_tensor = torch.DoubleTensor(state).unsqueeze(0)
+        q_values = q_func(state_tensor).cpu().data.numpy()[0]
+
+        return q_values
 
     def get_optimal_action(self, state):
         return self._choose_action_deterministic(state)
