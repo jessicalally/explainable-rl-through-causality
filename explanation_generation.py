@@ -344,15 +344,11 @@ class ExplanationGenerator():
         # TODO: what about doing it relative to the current state variable value?
         # pertubation should be 0.01 for continuous features, and smallest unit
         # for discrete features, as in paper
-        q_values = self.rl_agent.get_q_func()
+        q_values = self.rl_agent.get_q_values(state)
+        action = np.argmax(q_values)
         state_tensor = torch.DoubleTensor(state).unsqueeze(0)
-        q_state = q_values(state_tensor).cpu().data.numpy()[0]
-        action = np.argmax(q_state)
-        print(f'state {state}')
-        print(f'qstate {q_state}')
-        print(f'qstateaction {q_state[action]}')
 
-        importance_vector = np.full(state_tensor.shape[1], q_state[action])
+        importance_vector = np.full(state_tensor.shape[1], q_values[action])
         print(f'importance vector {importance_vector}')
 
         # Apply small pertubation to each state variable, and recalculate the
