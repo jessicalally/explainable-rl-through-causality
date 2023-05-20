@@ -1,6 +1,7 @@
 import castle.algorithms
 from castle.common.priori_knowledge import PrioriKnowledge
 from causalnex.structure.notears import from_numpy
+import lingam
 from lingam import VARLiNGAM
 from lingam.utils import make_dot, print_dagc
 import networkx as nx
@@ -27,6 +28,8 @@ class Method(object):
             return NOTEARS()
         elif method == 'varlingam':
             return VarLiNGAM()
+        elif method == 'directlingam':
+            return DirectLiNGAM()
         else:
             raise ValueError(
                 f'{method} is an unsupported causal discovery method')
@@ -61,14 +64,14 @@ class Method(object):
 
 
 class PC(Method):
-    def generate_causal_matrix(self, data, env, with_assumptions=True):
+    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
         priori = PrioriKnowledge(data.shape[1])
 
         # PC does not require post-processing, as the prior information can be
         # given directly to the algorithm
         if with_assumptions:
-            priori.add_forbidden_edges(env.forbidden_edges)
-            priori.add_required_edges(env.required_edges)
+            priori.add_forbidden_edges(forbidden_edges)
+            priori.add_required_edges(required_edges)
 
         pc = castle.algorithms.PC(
             variant='stable',
@@ -83,7 +86,7 @@ class PC(Method):
 
 
 class RL(Method):
-    def generate_causal_matrix(self, data, env, with_assumptions=True):
+    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
         rl = castle.algorithms.RL(
             nb_epoch=1500,
             input_dimension=32,
@@ -97,13 +100,13 @@ class RL(Method):
 
         if with_assumptions:
             causal_matrix = self.post_process(
-                causal_matrix, env.forbidden_edges, env.required_edges)
+                causal_matrix, forbidden_edges, required_edges)
 
         return causal_matrix
 
 
 class NOTEARS(Method):
-    def generate_causal_matrix(self, data, env, with_assumptions=True):
+    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
         threshold = 0.5
 
         nt = from_numpy(
@@ -121,7 +124,7 @@ class NOTEARS(Method):
 
         if with_assumptions:
             causal_matrix = self.post_process(
-                causal_matrix, env.forbidden_edges, env.required_edges)
+                causal_matrix, forbidden_edges, required_edges)
 
         return causal_matrix
 
@@ -146,39 +149,46 @@ class VarLiNGAM(Method):
             self,
             data,
             env,
+            forbidden_edges,
+            required_edges,
             threshold=0.3,
             with_assumptions=True,
             plot_dag=False,
-            print_dag_probabilities=False):
+            print_dag_probabilities=False,
+            restructure=False):
 
         # Reshape data as VarLiNGAM currently requires a different CSV structure
-        # than the other algorithms (rows of state + action + reward)
-        data = data[:, :-env.state_space]
-
+        # than the other algorithms (rows of state + action)
         model = VARLiNGAM()
         model.fit(data)
 
-        causal_matrix = np.vstack(
-            [
-                np.hstack(
-                    [model.adjacency_matrices_[0].T,
-                     model.adjacency_matrices_[1].T]
-                ),
+        if restructure:
+            causal_matrix = np.vstack(
+                [
+                    np.hstack(
+                        [model.adjacency_matrices_[0].T,
+                        model.adjacency_matrices_[1].T]
+                    ),
 
-                np.hstack(
-                    [np.zeros((data.shape[1], data.shape[1])),
-                     model.adjacency_matrices_[0].T]
-                )
-            ]
-        )
+                    np.hstack(
+                        [np.zeros((data.shape[1], data.shape[1])),
+                        model.adjacency_matrices_[0].T]
+                    )
+                ]
+            )
 
-        # TODO: explain this
-        causal_matrix = np.delete(
-            causal_matrix, len(causal_matrix) - 1, axis=0)
-        causal_matrix = np.delete(
-            causal_matrix, len(causal_matrix) - 1, axis=1)
-        causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=0)
-        causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=1)
+            # TODO: explain this
+            causal_matrix = np.delete(
+                causal_matrix, len(causal_matrix) - 1, axis=0)
+            causal_matrix = np.delete(
+                causal_matrix, len(causal_matrix) - 1, axis=1)
+            # causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=0)
+            # causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=1)
+
+        else:
+            # TODO: not sure what this should be
+            print(model.adjacency_matrices_[0].T)
+            causal_matrix = model.adjacency_matrices_[0].T
 
         causal_matrix = self.threshold(causal_matrix, threshold)
 
@@ -187,7 +197,7 @@ class VarLiNGAM(Method):
             # that go backwards in time are invalid, because the algorithm is
             # designed for handling time series data
             causal_matrix = self.post_process(
-                causal_matrix, env.forbidden_edges, env.required_edges)
+                causal_matrix, forbidden_edges, required_edges)
 
         if plot_dag:
             self.plot_dag(
@@ -198,5 +208,16 @@ class VarLiNGAM(Method):
 
         if print_dag_probabilities:
             self.print_dag_probabilities(model, data, threshold, env.labels)
+
+        return causal_matrix
+
+class DirectLiNGAM(Method):
+    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
+        model = lingam.DirectLiNGAM()
+        model.fit(data)
+
+        causal_matrix = model.adjacency_matrix_
+        causal_matrix = self.post_process(
+                causal_matrix, forbidden_edges, required_edges)
 
         return causal_matrix
