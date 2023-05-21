@@ -154,9 +154,9 @@ def main(args):
 
 
     for i in range(env.state_space):
-        forbidden_edges.append((env.state_space,))
+        forbidden_edges.append((env.state_space, i))
     
-    learned_reward_causal_graph, met, _ = causal_discovery(reward_causal_discovery_dataset, env, forbidden_edges, required_edges, env.reward_true_dag)
+    # learned_reward_causal_graph, met, _ = causal_discovery(reward_causal_discovery_dataset, env, forbidden_edges, required_edges, env.reward_true_dag)
 
     method = PC()
 
@@ -171,6 +171,8 @@ def main(args):
         with_assumptions=True)
     
     print(causal_matrix_with_assumptions)
+
+    reward_met = MetricsDAG(causal_matrix_with_assumptions, env.reward_true_dag)
 
     learned_reward_causal_graph = nx.from_numpy_matrix(
         causal_matrix_with_assumptions, create_using=nx.MultiDiGraph())
@@ -199,27 +201,45 @@ def main(args):
 
     ## Train structural causal model ##
 
-    # TODO: retrain all SCMs, and change the path to the scm_model, because they
-    # are currently predicting every state variable as 0.0
-    # scm_dataset_path = f"output/scm_dataset/{env.name}_{rl_agent.name}.pickle"
-    # os.makedirs(os.path.dirname(scm_dataset_path), exist_ok=True)
+    scm_dataset_path = f"output/scm_dataset/test/causal{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_dataset_path), exist_ok=True)
 
-    # num_datapoints = 500000
+    reward_scm_dataset_path = f"output/scm_dataset/test/reward{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_scm_dataset_path), exist_ok=True)
+
+    num_datapoints = 500000
+    # TODO: these two functions are the same now
     # scm_dataset = rl_agent.generate_test_data_for_scm(num_datapoints)
+    scm_dataset, reward_scm_dataset = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
 
-    # with open(scm_dataset_path, 'wb') as dataset_file:
-    #     pickle.dump(scm_dataset, dataset_file)
+    with open(scm_dataset_path, 'wb') as dataset_file:
+        pickle.dump(scm_dataset, dataset_file)
+
+    with open(reward_scm_dataset_path, 'wb') as dataset_file:
+        pickle.dump(reward_scm_dataset, dataset_file)
 
     # with open(scm_dataset_path, 'rb') as dataset_file:
     #     scm_dataset = pickle.load(dataset_file)
 
-    # scm = StructuralCausalModel(
-    #     env,
-    #     scm_dataset,
-    #     # learned_causal_graph
-    # )
+    # with open(reward_scm_dataset_path, 'rb') as dataset_file:
+    #     reward_scm_dataset = pickle.load(dataset_file)
 
-    # scm.train()
+    scm = StructuralCausalModel(
+        env,
+        scm_dataset,
+        learned_causal_graph
+    )
+
+    scm.train()
+
+    reward_scm = StructuralCausalModel(
+        env,
+        reward_scm_dataset,
+        learned_reward_causal_graph,
+        for_reward = True,
+    )
+
+    reward_scm.train()
 
     # scm_path = f"output/scm/learned_dag/{env.name}_{rl_agent.name}.pickle"
     # os.makedirs(os.path.dirname(scm_path), exist_ok=True)
@@ -232,23 +252,27 @@ def main(args):
 
     ## Evaluation ##
 
-    # num_datapoints = 10000
+    num_datapoints = 10000
 
-    # test_data = rl_agent.generate_test_data_for_scm(num_datapoints)
-    # print(test_data.shape)
-    # rnd_indices = np.random.choice(len(test_data), 2500)
-    # test_data = test_data[rnd_indices]
+    test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+    print(test_data.shape)
+    rnd_indices = np.random.choice(len(test_data), 2500)
+    test_data = test_data[rnd_indices]
 
-    # print(f'Data: {test_data.shape}')
+    print(f'Data: {test_data.shape}')
 
-    # # accuracy = evaluation.task_prediction(data, scm)
-    # # print("Accuracy="+str(accuracy))
+    # accuracy = evaluation.task_prediction(data, scm)
+    # print("Accuracy="+str(accuracy))
 
-    # mse, mse_ignoring_reward, action_predictions = evaluation.evaluate_fidelity(scm, test_data)
-    # print(met.metrics)
-    # print("MSE=" + str(mse))
-    # print("MSE ignoring reward=" + str(mse_ignoring_reward))
-    # print("Correct action predictions=" + str(action_predictions))
+    mse, action_predictions = evaluation.evaluate_fidelity(scm, test_data)
+    print(met)
+    print("MSE=" + str(mse))
+    print("Correct action predictions=" + str(action_predictions))
+
+    mse, action_predictions = evaluation.evaluate_fidelity(reward_scm, reward_test_data, REWARD_DAG=True)
+    print(reward_met.metrics)
+    print("MSE=" + str(mse))
+    print("Correct action predictions=" + str(action_predictions))
 
     # with open(f"{env.name}_{rl_agent.name}_metrics.txt", 'w') as f:
     #     f.write("MSE=" + str(mse))
@@ -273,9 +297,9 @@ def main(args):
     #     why_explanations.add(why_explanation)
     #     print(f'Why {env.actions[example_action]}?\n {why_explanation}')
 
-    #     # why_not_explanation = explanation_generator.generate_why_not_explanation(example_state, example_action, example_counter_action, pertubation)
-    #     # print(f'Why not {env.actions[example_counter_action]}?\n {why_not_explanation}')
-    #     # why_not_explanations.add(why_not_explanation)
+        # why_not_explanation = explanation_generator.generate_why_not_explanation(example_state, example_action, example_counter_action, pertubation)
+        # print(f'Why not {env.actions[example_counter_action]}?\n {why_not_explanation}')
+        # why_not_explanations.add(why_not_explanation)
     
     # with open(f"{env.name}_{rl_agent.name}_explanations.txt", 'w') as f:
     #     f.write(str(why_explanations))

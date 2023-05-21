@@ -298,7 +298,7 @@ class DDQN(RLAgent):
 
         print('Finished generating test data for DDQN Algorithm...')
 
-        return np.array(transition_scm_test_data)
+        return np.array(transition_scm_test_data), np.array(reward_scm_test_data)
 
     # Methods needed for estimating feature importance
 

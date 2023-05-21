@@ -9,8 +9,9 @@ import pandas as pd
 
 
 class StructuralCausalModel:
-    def __init__(self, env, data_set, learned_causal_graph=None):
+    def __init__(self, env, data_set, learned_causal_graph=None, for_reward=False):
         self.env = env
+        self.for_reward = for_reward
 
         if learned_causal_graph is not None:
             self.causal_graph = learned_causal_graph
@@ -55,13 +56,13 @@ class StructuralCausalModel:
                     key=str(i)) for i in range(
                     len(x_data))]
 
-            if node == self.env.state_space:
+            if node == self.env.action_node and not self.for_reward:
                 y_data = data_set[:, node].astype(int)
 
                 classifier = tf.estimator.DNNClassifier(
                     n_classes=self.env.action_space,
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/' + str(self.env.name) + '/linear_classifier/' + str(node),
+                    model_dir='scm_models/test/' + str(self.env.name) + '/linear_classifier/' + str(node) + str(self.for_reward),
                     hidden_units=[64, 128, 64, 32],
                     dropout=0.2,
                 )
@@ -76,7 +77,7 @@ class StructuralCausalModel:
 
                 lr = tf.estimator.LinearRegressor(
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/' + str(self.env.name) + '/linear_regressor/' + str(node))
+                    model_dir='scm_models/test/' + str(self.env.name) + '/linear_regressor/' + str(node) + str(self.for_reward))
 
                 structural_equations[node] = {
                     'X': x_data, 'Y': y_data, 'function': lr, 'type': 'state'}
