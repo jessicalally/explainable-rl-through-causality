@@ -106,10 +106,10 @@ def main(args):
     # Train agent from scratch or load
     # TODO: we have to use the training data, especially for cartpole, because a well-trained
     # agent never terminates, hence the reward is never 0.
-    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train(use_sum_rewards=True)
+    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
 
-    # with open(rl_agent_path,'rb') as agent_file:
-    #     rl_agent = pickle.load(agent_file)
+    with open(rl_agent_path,'rb') as agent_file:
+        rl_agent = pickle.load(agent_file)
 
     print(reward_causal_discovery_dataset.shape)
    
@@ -311,6 +311,6 @@ def main(args):
 #     #     f.write(str(why_explanations))
 #     #     f.write(str(why_not_explanations))
 
-# if __name__ == '__main__':
-#     args = parse_args()
-#     main(args)
+if __name__ == '__main__':
+    args = parse_args()
+    main(args)
