@@ -70,12 +70,20 @@ def evaluate_fidelity(scm, test_data, num_test_points=100):
 
         # Evaluates fidelity of predicted state values
         total_diff = 0.0
+        total_diff_ignoring_reward = 0.0
 
         for node in trained_structural_equations:
             predicted_value = predicted_nodes[node][0]
             actual_value = test_data[test_case][node]
 
             # print(f'node: {node}, predicted: {predicted_value}, actual: {actual_value}')
+
+
+            if node != len(test_data[test_case]) - 1:
+                # not reward node
+                if trained_structural_equations[node]['type'] == 'state':
+                    diff = (abs(actual_value - predicted_value)) ** 2
+                    total_diff_ignoring_reward += diff
 
             if trained_structural_equations[node]['type'] == 'state':
                 diff = (abs(actual_value - predicted_value)) ** 2
@@ -85,11 +93,13 @@ def evaluate_fidelity(scm, test_data, num_test_points=100):
                     num_correct_action_predictions += 1
 
         mse = total_diff / len(trained_structural_equations)
+        mse_ignoring_reward = total_diff_ignoring_reward / len(trained_structural_equations)
         avg_mse = ((avg_mse * test_case) + mse) / (test_case + 1)
+        avg_mse_ignoring_reward = ((avg_mse * test_case) + mse_ignoring_reward) / (test_case + 1)
 
     avg_correct_action_predictions = num_correct_action_predictions / num_test_points
 
-    return avg_mse, avg_correct_action_predictions
+    return avg_mse, avg_mse_ignoring_reward, avg_correct_action_predictions
 
 # Performance: Measures the time taken to train the model
 
