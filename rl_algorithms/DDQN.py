@@ -213,7 +213,7 @@ class DDQN(RLAgent):
         print('Finished DDQN Algorithm...')
 
 
-    def generate_test_data_for_causal_discovery(self, num_datapoints):
+    def generate_test_data_for_causal_discovery(self, num_datapoints, use_sum_rewards=False):
         transition_test_data = []
         reward_test_data = []
 
@@ -230,19 +230,26 @@ class DDQN(RLAgent):
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
 
-                if terminated:
-                    episode_rewards = 0
+                # TODO: do we want this for just cartpole or for lunar lander as well???
+                if use_sum_rewards:
+                    if terminated:
+                        episode_rewards = 0
+                    else:
+                        episode_rewards += reward
+
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(episode_rewards)), axis=None)
+                    )
                 else:
-                    episode_rewards += reward
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(reward)), axis=None)
+                    )
 
                 transition_test_data.append(
                     np.concatenate(
                         (state, np.array(action), next_state),
                         axis=None))
-                
-                reward_test_data.append(
-                    np.concatenate((next_state, np.array(episode_rewards)), axis=None)
-                )
+            
 
                 state = next_state
 
@@ -254,35 +261,44 @@ class DDQN(RLAgent):
 
     # TODO: adjust rewards in same way as above
     def generate_test_data_for_scm(self, num_datapoints):
-        test_data = []
+        transition_scm_test_data = []
+        reward_scm_test_data = []
 
         print('Generating test data for DDQN algorithm...')
 
-        while len(test_data) < num_datapoints:
+        while len(transition_scm_test_data) < num_datapoints:
             terminated = False
             truncated = False
             state, _ = self.env.reset()
+
+            episode_rewards = 0
 
             while not (terminated or truncated):
                 action = self._choose_action_deterministic(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
 
-                test_data.append(
+                if terminated:
+                    episode_rewards = 0
+                else:
+                    episode_rewards += reward
+
+                transition_scm_test_data.append(
                     np.concatenate(
-                        (state,
-                         np.array(action),
-                            next_state,
-                            np.array(reward)),
+                        (state, np.array(action), next_state),
                         axis=None))
+                
+                reward_scm_test_data.append(
+                    np.concatenate((next_state, np.array(episode_rewards)), axis=None)
+                )
 
                 state = next_state
 
-            print("num datapoints collected so far: {}".format(len(test_data)))
+            print("num datapoints collected so far: {}".format(len(transition_scm_test_data)))
 
         print('Finished generating test data for DDQN Algorithm...')
 
-        return np.array(test_data)
+        return np.array(transition_scm_test_data)
 
     # Methods needed for estimating feature importance
 
