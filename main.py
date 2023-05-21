@@ -1,4 +1,5 @@
 import argparse
+import itertools
 from castle.metrics import MetricsDAG
 from causal_discovery.environment import *
 from causal_discovery.method import *
@@ -92,7 +93,7 @@ def causal_discovery(dataset, env, forbidden_edges, required_edges, true_dag, re
     met = MetricsDAG(causal_matrix_with_assumptions, true_dag)
     print(met.metrics)
 
-    return learned_causal_graph, met.metrics
+    return learned_causal_graph, met.metrics, causal_matrix_with_assumptions
 
 
 def main(args):
@@ -109,8 +110,8 @@ def main(args):
         rl_agent = pickle.load(agent_file)
    
     ## Generate datasets ##
-    num_datapoints = 500000
-    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.generate_test_data_for_causal_discovery(num_datapoints)
+    # num_datapoints = 500000
+    # causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.generate_test_data_for_causal_discovery(num_datapoints)
 
     dataset_path = f"output/causal_discovery_dataset/test/causal{env.name}_{rl_agent.name}.pickle"
     os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
@@ -120,17 +121,17 @@ def main(args):
     # with open(rl_agent_path, 'wb') as agent_file:
     #     pickle.dump(rl_agent, agent_file)
 
-    with open(dataset_path, 'wb') as dataset_file:
-        pickle.dump(causal_discovery_dataset, dataset_file)
+    # with open(dataset_path, 'wb') as dataset_file:
+    #     pickle.dump(causal_discovery_dataset, dataset_file)
 
-    with open(reward_dataset_path, 'wb') as dataset_file:
-        pickle.dump(reward_causal_discovery_dataset, dataset_file)
+    # with open(reward_dataset_path, 'wb') as dataset_file:
+    #     pickle.dump(reward_causal_discovery_dataset, dataset_file)
 
-    # with open(dataset_path, 'rb') as dataset_file:
-    #     causal_discovery_dataset = pickle.load(dataset_file)
+    with open(dataset_path, 'rb') as dataset_file:
+        causal_discovery_dataset = pickle.load(dataset_file)
 
-    # with open(reward_dataset_path, 'rb') as dataset_file:
-    #     reward_causal_discovery_dataset = pickle.load(dataset_file)
+    with open(reward_dataset_path, 'rb') as dataset_file:
+        reward_causal_discovery_dataset = pickle.load(dataset_file)
 
 
     # Or load given datasets
@@ -141,16 +142,32 @@ def main(args):
     # causal_discovery_dataset = np.loadtxt("output/causal_discovery_dataset/starcraft_a2c.csv", delimiter=',', encoding="utf_8_sig")
 
     ## Learn causal graph ##
-    learned_causal_graph, met = causal_discovery(causal_discovery_dataset[:,:-env.state_space], env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
-    # learned_reward_causal_graph, met = causal_discovery(reward_causal_discovery_dataset, env, env.forbidden_edges_reward, [], env.reward_true_dag)
+    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset[:,:-env.state_space], env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
+    
+    forbidden_edges = [(i, j) for i, j in itertools.product(range(env.state_space), range(env.state_space))]
+    required_edges = []
+
+    for i,j in itertools.product(range(env.state_space), range(env.state_space)):
+        if causal_matrix_with_assumptions[i][j] == 1:
+            forbidden_edges.remove((i, j))
+            required_edges.append((i, j))
+
+
+    for i in range(env.state_space):
+        forbidden_edges.append((env.state_space,))
+    
+    learned_reward_causal_graph, met, _ = causal_discovery(reward_causal_discovery_dataset, env, forbidden_edges, required_edges, env.reward_true_dag)
 
     method = PC()
 
+    print(f'forbidden {forbidden_edges}')
+    print(f'required {required_edges}')
+    
     causal_matrix_with_assumptions = method.generate_causal_matrix(
         reward_causal_discovery_dataset,
         env,
-        env.forbidden_edges_reward,
-        [],
+        forbidden_edges,
+        required_edges,
         with_assumptions=True)
     
     print(causal_matrix_with_assumptions)
