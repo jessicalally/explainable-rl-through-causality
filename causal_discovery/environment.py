@@ -135,22 +135,6 @@ class Cartpole(Environment):
 
     # We only want the edges from state variables to the reward, so forbid all other edges
     forbidden_edges_reward = [
-        (0, 0),
-        (0, 1),
-        (0, 2),
-        (0, 3),
-        (1, 0),
-        (1, 1),
-        (1, 2),
-        (1, 3),
-        (2, 0),
-        (2, 1),
-        (2, 2),
-        (2, 3),
-        (3, 0),
-        (3, 1),
-        (3, 2),
-        (3, 3),
         (4, 0),
         (4, 1),
         (4, 2),
@@ -237,7 +221,7 @@ class LunarLander(Environment):
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16 = right leg in contact with ground t+1
     ])
 
-    reward_true_dag = [
+    reward_true_dag = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 1], # 0 = x coord t
         [0, 0, 0, 0, 0, 0, 0, 0, 1], # 1 = y coord t
         [0, 0, 0, 0, 0, 0, 0, 0, 1], # 2 = x velocity t
@@ -247,7 +231,7 @@ class LunarLander(Environment):
         [0, 0, 0, 0, 0, 0, 0, 0, 1], # 6 = left leg t
         [0, 0, 0, 0, 0, 0, 0, 0, 1], # 7 = right leg t
         [0, 0, 0, 0, 0, 0, 0, 0, 0], # 8 = reward
-    ]
+    ])
 
     labels = [
         'x-coord(t)',
@@ -270,70 +254,6 @@ class LunarLander(Environment):
         'action(t-1)']
     
     forbidden_edges_reward = [
-       (0, 0),
-       (0, 1),
-       (0, 2),
-       (0, 3),
-       (0, 4),
-       (0, 5),
-       (0, 6),
-       (0, 7),
-       (1, 0),
-       (1, 1),
-       (1, 2),
-       (1, 3),
-       (1, 4),
-       (1, 5),
-       (1, 6),
-       (1, 7),
-       (2, 0),
-       (2, 1),
-       (2, 2),
-       (2, 3),
-       (2, 4),
-       (2, 5),
-       (2, 6),
-       (2, 7),
-       (3, 0),
-       (3, 1),
-       (3, 2),
-       (3, 3),
-       (3, 4),
-       (3, 5),
-       (3, 6),
-       (3, 7),
-       (4, 0),
-       (4, 1),
-       (4, 2),
-       (4, 3),
-       (4, 4),
-       (4, 5),
-       (4, 6),
-       (4, 7),
-       (5, 0),
-       (5, 1),
-       (5, 2),
-       (5, 3),
-       (5, 4),
-       (5, 5),
-       (5, 6),
-       (5, 7),
-       (6, 0),
-       (6, 1),
-       (6, 2),
-       (6, 3),
-       (6, 4),
-       (6, 5),
-       (6, 6),
-       (6, 7),
-       (7, 0),
-       (7, 1),
-       (7, 2),
-       (7, 3),
-       (7, 4),
-       (7, 5),
-       (7, 6),
-       (7, 7),
        (8, 0),
        (8, 1),
        (8, 2),
@@ -481,6 +401,12 @@ class MountainCar(Environment):
         [0, 0, 0, 0, 0, 0]   # 5 = reward
     ])
 
+    reward_true_dag = np.array([
+        [0, 0, 1], # 0 = pos t
+        [0, 0, 0], # 1 = velocity t
+        [0, 0, 0], # 2 = reward
+    ])
+
     labels = [
         'pos(t)',
         'velocity(t)',
@@ -506,7 +432,12 @@ class MountainCar(Environment):
     }
 
     action_node = 2
-    reward_node = 5
+
+    forbidden_edges_reward = [
+        (2, 0),
+        (2, 1),
+        (2, 2),
+    ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -544,17 +475,25 @@ class Taxi(Environment):
     env = gym.make('Taxi-v3')
 
     true_dag = np.array([
-        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],  # 0 = taxi row t
-        [0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 1 = taxi column t
-        [0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 2 = passenger location t
-        [0, 0, 0, 0, 1, 0, 0, 0, 1, 0],  # 3 = destination t
-        [0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  # 4 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = taxi row t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = taxi column t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = passenger location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destination t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]   # 9 = reward
+        [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = taxi row t
+        [0, 0, 0, 0, 1, 0, 1, 0, 0],  # 1 = taxi column t
+        [0, 0, 0, 0, 1, 0, 0, 1, 0],  # 2 = passenger location t
+        [0, 0, 0, 0, 1, 0, 0, 0, 1],  # 3 = destination t
+        [0, 0, 0, 0, 0, 1, 1, 1, 1],  # 4 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = taxi row t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = taxi column t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = passenger location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = destination t + 1
     ])
+
+    reward_true_dag = np.array([
+        [0, 0, 0, 0, 0], # 0 = taxi row t
+        [0, 0, 0, 0, 0], # 1 = taxi column t
+        [0, 0, 0, 0, 1], # 2 = passenger location t
+        [0, 0, 0, 0, 1], # 3 = destination t
+        [0, 0, 0, 0, 0], # 4 = reward t
+    ])
+
 
     labels = [
         'row(t)',
@@ -593,7 +532,14 @@ class Taxi(Environment):
     }
 
     action_node = 4
-    reward_node = 10
+
+    forbidden_edges_reward = [
+        (4, 0),
+        (4, 1),
+        (4, 2),
+        (4, 3),
+        (4, 4),
+    ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -653,27 +599,38 @@ class Starcraft(Environment):
     env = None  # TODO
 
     true_dag = np.array([
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0],  # 1 = supply depot number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0, 0],  # 2 = barracks number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0],  # 3 = enemy location t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0],  # 4 = ally unit number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0],  # 5 = ally unit health t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0],  # 6 = ally unit location t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],  # 7 = destroyed units t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],  # 8 = destroyed buildings t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0],  # 9 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 10 = worker supply number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = supply depot number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = barracks number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = enemy location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = ally unit number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 15 = ally unit health t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16 = ally unit location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 17 = destroyed units t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 18 = destroyed buildings t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 19 = reward t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0],  # 1 = supply depot number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0],  # 2 = barracks number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1],  # 3 = enemy location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1],  # 4 = ally unit number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1],  # 5 = ally unit health t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 6 = ally unit location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],  # 7 = destroyed units t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destroyed buildings t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # 9 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 10 = worker supply number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = supply depot number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = barracks number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = enemy location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = ally unit number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 15 = ally unit health t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16 = ally unit location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 17 = destroyed units t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 18 = destroyed buildings t + 1
+    ])
 
+    reward_true_dag = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 1 = supply depot number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 2 = barracks number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 3 = enemy location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 4 = ally unit number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = ally unit health t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = ally unit location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = destroyed units t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destroyed buildings t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 9 = reward t
     ])
 
     labels = [
@@ -697,6 +654,19 @@ class Starcraft(Environment):
         'Du(t-1)',
         'Db(t-1)'
         'A(t-1)',
+    ]
+
+    forbidden_edges_reward = [
+        (9, 0),
+        (9, 1),
+        (9, 2),
+        (9, 3),
+        (9, 4),
+        (9, 5),
+        (9, 6),
+        (9, 7),
+        (9, 8),
+        (9, 9),
     ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
