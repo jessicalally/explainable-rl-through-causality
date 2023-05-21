@@ -126,6 +126,12 @@ def main(args):
     with open(reward_dataset_path, 'wb') as dataset_file:
         pickle.dump(reward_causal_discovery_dataset, dataset_file)
 
+    # with open(dataset_path, 'rb') as dataset_file:
+    #     causal_discovery_dataset = pickle.load(dataset_file)
+
+    # with open(reward_dataset_path, 'rb') as dataset_file:
+    #     reward_causal_discovery_dataset = pickle.load(dataset_file)
+
 
     # Or load given datasets
 
@@ -136,24 +142,21 @@ def main(args):
 
     ## Learn causal graph ##
     learned_causal_graph, met = causal_discovery(causal_discovery_dataset[:,:-env.state_space], env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
-    learned_reward_causal_graph, met = causal_discovery(reward_causal_discovery_dataset, env, env.forbidden_edges_reward, [], env.reward_true_dag)
+    # learned_reward_causal_graph, met = causal_discovery(reward_causal_discovery_dataset, env, env.forbidden_edges_reward, [], env.reward_true_dag)
 
-    # method = PC()
+    method = PC()
 
-    # causal_matrix_with_assumptions = method.generate_causal_matrix(
-    #     reward_causal_discovery_dataset,
-    #     env,
-    #     env.forbidden_edges_reward,
-    #     [],
-    #     with_assumptions=True)
+    causal_matrix_with_assumptions = method.generate_causal_matrix(
+        reward_causal_discovery_dataset,
+        env,
+        env.forbidden_edges_reward,
+        [],
+        with_assumptions=True)
     
-    # print(causal_matrix_with_assumptions)
+    print(causal_matrix_with_assumptions)
 
-    # learned_causal_graph = nx.from_numpy_matrix(
-    #     causal_matrix_with_assumptions, create_using=nx.MultiDiGraph())
-
-    # met = MetricsDAG(causal_matrix_with_assumptions, env.reward_true_dag)
-    # print(met.metrics)
+    learned_reward_causal_graph = nx.from_numpy_matrix(
+        causal_matrix_with_assumptions, create_using=nx.MultiDiGraph())
 
 
     # metrics_path = f"output/metrics/{env.name}_{rl_agent.name}.pickle"

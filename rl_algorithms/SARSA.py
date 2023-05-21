@@ -125,6 +125,8 @@ class SARSA(RLAgent):
     # Generates datapoints from the trained RL agent
     def generate_test_data_for_causal_discovery(self, num_datapoints):
         test_data = []
+        reward_discovery_test_data = []
+
         policy = self._generate_deterministic_policy()
         episode = 0
 
@@ -136,7 +138,6 @@ class SARSA(RLAgent):
             action = self._choose_action_from_probs(action_probs)
             done = False
             total_reward = 0
-            prev_reward = 0
 
             while not done and len(test_data) < num_datapoints:
                 next_state, reward, done, _, _ = self.env.step(action)
@@ -155,12 +156,12 @@ class SARSA(RLAgent):
                 test_data.append(
                     np.concatenate(
                         (decoded_state,
-                         np.array(action),
-                         np.array(prev_reward),
-                            decoded_next_state),
+                        np.array(action),
+                        decoded_next_state),
                         axis=None))
+                
+                reward_discovery_test_data.append(np.concatenate((decoded_next_state, np.array(reward)), axis=None))
 
-                prev_reward = reward
                 total_reward += reward
                 action = next_action
                 state = next_state
@@ -171,12 +172,14 @@ class SARSA(RLAgent):
 
         print("Finished generating test data...")
 
-        return np.array(test_data)
+        return np.array(test_data), np.array(reward_discovery_test_data)
     
 
     # Generates datapoints from the trained RL agent
     def generate_test_data_for_scm(self, num_datapoints):
         test_data = []
+        reward_scm_test_data = []
+        
         policy = self._generate_deterministic_policy()
         episode = 0
 
@@ -206,10 +209,11 @@ class SARSA(RLAgent):
                 test_data.append(
                     np.concatenate(
                         (decoded_state,
-                         np.array(action),
-                            decoded_next_state,
-                            np.array(reward)),
+                        np.array(action),
+                        decoded_next_state),
                         axis=None))
+                
+                reward_scm_test_data.append(np.concatenate((decoded_next_state, np.array(reward)), axis=None))
 
                 total_reward += reward
                 action = next_action

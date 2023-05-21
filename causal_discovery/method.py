@@ -213,10 +213,12 @@ class VarLiNGAM(Method):
 
 class DirectLiNGAM(Method):
     def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
+        threshold = 0.01
         model = lingam.DirectLiNGAM()
         model.fit(data)
 
         causal_matrix = model.adjacency_matrix_
+        causal_matrix = self.threshold(causal_matrix, threshold)
         causal_matrix = self.post_process(
                 causal_matrix, forbidden_edges, required_edges)
 
