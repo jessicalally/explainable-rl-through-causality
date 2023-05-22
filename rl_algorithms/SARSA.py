@@ -56,8 +56,8 @@ class SARSA(RLAgent):
         return policy_fn
 
     def train(self, episodes=100000, reward_threshold=10):
-        causal_discovery_dataset = []
-        action_influence_dataset = []
+        test_data = []
+        reward_test_data = []
 
         print('Performing SARSA algorithm...')
 
@@ -79,17 +79,20 @@ class SARSA(RLAgent):
                 # Taxi environment requires decoding the state into the separate
                 # state variables
                 taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(state)
-                decoded_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+                decoded_state = [taxi_row, taxi_col, pass_loc, dest_idx]
 
                 taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(
                     next_state)
-                decoded_next_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+                decoded_next_state = [taxi_row, taxi_col, pass_loc, dest_idx]
 
-                causal_discovery_dataset.append(np.concatenate(
-                    (decoded_state, np.array(action), decoded_next_state), axis=None))
-
-                action_influence_dataset.append(
-                    (decoded_state, action, reward, decoded_next_state))
+                test_data.append(
+                    np.concatenate(
+                        (decoded_state,
+                        np.array(action),
+                        decoded_next_state),
+                        axis=None))
+                                
+                reward_test_data.append(np.concatenate((decoded_next_state, np.array(reward)), axis=None))
 
                 td_target = reward + self.gamma * \
                     self.Q[next_state][next_action]
@@ -119,8 +122,7 @@ class SARSA(RLAgent):
 
         print('Finished SARSA Algorithm...')
 
-        return np.array(action_influence_dataset), np.array(
-            causal_discovery_dataset)
+        return np.array(test_data), np.array(reward_test_data)
 
     # Generates datapoints from the trained RL agent
     def generate_test_data_for_causal_discovery(self, num_datapoints):
@@ -147,11 +149,11 @@ class SARSA(RLAgent):
                 # Taxi environment requires decoding the state into the separate
                 # state variables
                 taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(state)
-                decoded_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+                decoded_state = [taxi_row, taxi_col, pass_loc, dest_idx]
 
                 taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(
                     next_state)
-                decoded_next_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+                decoded_next_state = [taxi_row, taxi_col, pass_loc, dest_idx]
 
                 test_data.append(
                     np.concatenate(
