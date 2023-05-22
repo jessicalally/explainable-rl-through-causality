@@ -12,7 +12,7 @@ from .rl_agent import RLAgent
 class SARSA(RLAgent):
     def __init__(self, environment):
         self.name = "sarsa"
-        
+
         # Environment
         self.env = environment.env
         self.test_env = copy.deepcopy(self.env)
@@ -55,7 +55,7 @@ class SARSA(RLAgent):
 
         return policy_fn
 
-    def train(self, episodes=50000, reward_threshold=10):
+    def train(self, episodes=100000, reward_threshold=10):
         causal_discovery_dataset = []
         action_influence_dataset = []
 
@@ -119,10 +119,63 @@ class SARSA(RLAgent):
 
         print('Finished SARSA Algorithm...')
 
-        return np.array(action_influence_dataset), np.array(causal_discovery_dataset)
+        return np.array(action_influence_dataset), np.array(
+            causal_discovery_dataset)
 
     # Generates datapoints from the trained RL agent
-    def generate_test_data(self, num_datapoints):
+    def generate_test_data_for_causal_discovery(self, num_datapoints):
+        test_data = []
+        policy = self._generate_deterministic_policy()
+        episode = 0
+
+        print("Generating test data...")
+
+        while len(test_data) < num_datapoints:
+            state, _ = self.env.reset()
+            action_probs = policy(state)
+            action = self._choose_action_from_probs(action_probs)
+            done = False
+            total_reward = 0
+            prev_reward = 0
+
+            while not done and len(test_data) < num_datapoints:
+                next_state, reward, done, _, _ = self.env.step(action)
+                next_action_probs = policy(next_state)
+                next_action = self._choose_action_from_probs(next_action_probs)
+
+                # Taxi environment requires decoding the state into the separate
+                # state variables
+                taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(state)
+                decoded_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+
+                taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(
+                    next_state)
+                decoded_next_state = (taxi_row, taxi_col, pass_loc, dest_idx)
+
+                test_data.append(
+                    np.concatenate(
+                        (decoded_state,
+                         np.array(action),
+                         np.array(prev_reward),
+                            decoded_next_state),
+                        axis=None))
+
+                prev_reward = reward
+                total_reward += reward
+                action = next_action
+                state = next_state
+
+            print("episode: {}, score: {}".format(episode, total_reward))
+            print("num datapoints collected so far: {}".format(len(test_data)))
+            episode += 1
+
+        print("Finished generating test data...")
+
+        return np.array(test_data)
+    
+
+    # Generates datapoints from the trained RL agent
+    def generate_test_data_for_scm(self, num_datapoints):
         test_data = []
         policy = self._generate_deterministic_policy()
         episode = 0
@@ -154,7 +207,8 @@ class SARSA(RLAgent):
                     np.concatenate(
                         (decoded_state,
                          np.array(action),
-                            decoded_next_state),
+                            decoded_next_state,
+                            np.array(reward)),
                         axis=None))
 
                 total_reward += reward
@@ -168,16 +222,15 @@ class SARSA(RLAgent):
         print("Finished generating test data...")
 
         return np.array(test_data)
-    
+
+
     # Methods needed for estimating feature importance
 
-    def get_q_func(self):
-        return self.Q
-    
+    def get_q_values(self, state):
+        return self.Q[state]
 
     def get_optimal_action(self, state):
         policy = self._generate_deterministic_policy()
         next_action_probs = policy(state)
 
         return self._choose_action_from_probs(next_action_probs)
-

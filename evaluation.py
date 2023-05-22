@@ -5,6 +5,8 @@ import numpy as np
 # learning on discrete bins
 
 # TODO: restructure this for the new causal graph format?
+
+
 def task_prediction(test_data, action_influence_model):
     trained_structural_equations = action_influence_model.structural_equations
     num_correct_action_predictions = 0

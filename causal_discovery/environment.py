@@ -6,15 +6,25 @@ import gym
 
 
 class Environment(object):
+    name = None
     state_space = None
     action_space = None
     env = None
     true_dag = None
+    action_node = 4
+    reward_node = 9
+
     # TODO: currently needed for VarLiNGAM DAG plots, find a better way to
     # generalise for all methods
     labels = None
+    features = None
+    actions = None
     forbidden_edges = []
     required_edges = []
+
+    def __init__(self):
+        self.causal_graph = nx.from_numpy_matrix(
+            self.true_dag, create_using=nx.MultiDiGraph())
 
     @staticmethod
     def get_env(env):
@@ -41,21 +51,20 @@ class Cartpole(Environment):
     env = gym.make('CartPole-v1')
 
     true_dag = np.array([
-        [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = pos t
-        [0, 0, 0, 0, 1, 1, 1, 0, 0],  # 1 = velocity t
-        [0, 0, 0, 0, 1, 0, 0, 1, 0],  # 2 = pole angle t
-        [0, 0, 0, 0, 1, 0, 0, 1, 1],  # 3 = angular velocity t
-        [0, 0, 0, 0, 0, 1, 1, 1, 1],  # 4 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = pos t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = pole angle t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0]  # 8 = angular t+1
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],  # 0 = pos t
+        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],  # 1 = velocity t
+        [0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 2 = pole angle t
+        [0, 0, 0, 0, 1, 0, 0, 1, 1, 0],  # 3 = angular velocity t
+        [0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  # 4 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 5 = pos t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = pole angle t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = angular t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 9 = reward t+1
     ])
 
-    # TODO: these are the nodes that directly impact the reward
-    # TODO: can we generate these automatically???
-    # cart pos and pole angle 
-    reward_nodes = {5, 7}
+    action_node = 4
+    reward_node = 9
 
     labels = [
         'pos(t)',
@@ -63,12 +72,13 @@ class Cartpole(Environment):
         'angle(t)',
         'ang-velo(t)',
         'action(t)',
+        'reward(t)',
         'pos(t-1)',
         'velo(t-1)',
         'angle(t-1)',
         'ang-velo(t-1)',
-        'action(t-1)']
-    
+        'action(t-1)',
+        'reward(t-1)']
 
     features = {
         0: 'cart position',
@@ -79,7 +89,8 @@ class Cartpole(Environment):
         5: 'cart position',
         6: 'cart velocity',
         7: 'pole angle',
-        8: 'pole angular velocity'
+        8: 'pole angular velocity',
+        9: 'reward',
     }
 
     actions = {
@@ -114,6 +125,22 @@ class Cartpole(Environment):
         (8, 2),
         (8, 3),
         (8, 4),
+        # reward does not have an affect on the state
+        (9, 0),
+        (9, 1),
+        (9, 2),
+        (9, 3),
+        (9, 4),
+        (9, 5),
+        (9, 6),
+        (9, 7),
+        (9, 8),
+        # past state can't affect reward
+        (0, 9),
+        (1, 9),
+        (2, 9),
+        (3, 9),
+        (4, 9),
     ]
 
     # Assumption: all past state variables affect action choice and action
@@ -128,10 +155,6 @@ class Cartpole(Environment):
         (4, 7),
         (4, 8),
     ]
-
-    def __init__(self):
-        self.causal_graph = nx.from_numpy_matrix(
-            self.true_dag, create_using=nx.MultiDiGraph())
 
 
 ##### Lunar Lander #####
@@ -183,32 +206,28 @@ class LunarLander(Environment):
     # - 100 * abs(state[4])
     # + 10 * state[6]
     # + 10 * state[7]
-    reward_nodes = {9, 10, 11, 12, 13, 15, 16}
+    action_node = 8
+    reward_node = 17
 
     true_dag = np.array([
-        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
-        [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],  # 1 = y coord t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0],  # 2 = x velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0],  # 3 = y velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],  # 4 = angle t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-            1, 1, 0, 0],  # 5 = angular velocity t
-        # 6 = left leg in contact with ground t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        # 7 = right leg in contact with ground t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],  # 8 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # 9 = x coord t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # 10 = y coord t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = x velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = y velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = angle t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0],  # 14 = angular velocity t+1
-        # 15 = left leg in contact with ground t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        # 16 = right leg in contact with ground t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # 1 = y coord t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],  # 2 = x velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0],  # 3 = y velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 4 = angle t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 5 = angular velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = left leg in contact with ground t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = right leg in contact with ground t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],  # 8 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 9 = x coord t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 10 = y coord t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 11 = x velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 12 = y velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 13 = angle t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = angular velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 15 = left leg in contact with ground t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 16 = right leg in contact with ground t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]   # 17 = reward
     ])
 
     labels = [
@@ -314,7 +333,36 @@ class LunarLander(Environment):
         (16, 6),
         (16, 7),
         (16, 8),
-        (16, 9)
+        (16, 9),
+
+        # Specific reward assumptions
+        (17, 0),
+        (17, 1),
+        (17, 2),
+        (17, 3),
+        (17, 4),
+        (17, 5),
+        (17, 6),
+        (17, 7),
+        (17, 8),
+        (17, 9),
+        (17, 10),
+        (17, 11),
+        (17, 12),
+        (17, 13),
+        (17, 14),
+        (17, 15),
+        (17, 16),
+        (17, 17),
+        (0, 17),
+        (1, 17),
+        (2, 17),
+        (3, 17),
+        (4, 17),
+        (5, 17),
+        (6, 17),
+        (7, 17),
+        (8, 17),
     ]
 
     # Assumption: all past state variables affect action choice and action
@@ -359,11 +407,12 @@ class MountainCar(Environment):
     env = gym.make('MountainCar-v0')
 
     true_dag = np.array([
-        [0, 0, 1, 1, 1],  # 0 = pos t
-        [0, 0, 1, 0, 1],  # 1 = velocity t
-        [0, 0, 0, 0, 1],  # 2 = action t
-        [0, 0, 0, 0, 0],  # 3 = pos t + 1
-        [0, 0, 0, 1, 0],  # 4 = velocity t + 1
+        [0, 0, 1, 1, 1, 0],  # 0 = pos t
+        [0, 0, 1, 0, 1, 0],  # 1 = velocity t
+        [0, 0, 0, 0, 1, 0],  # 2 = action t
+        [0, 0, 0, 0, 0, 1],  # 3 = pos t + 1
+        [0, 0, 0, 1, 0, 0],  # 4 = velocity t + 1
+        [0, 0, 0, 0, 0, 0]   # 5 = reward
     ])
 
     labels = [
@@ -374,6 +423,24 @@ class MountainCar(Environment):
         'velocity(t-1)',
         'action(t-1)'
     ]
+
+    actions = {
+        0: "Accelerate to the left",
+        1: "Don’t accelerate",
+        2: "Accelerate to the right"
+    }
+
+    features = {
+        0: 'car position',
+        1: 'car velocity',
+        2: 'action',
+        3: 'car position',
+        4: 'car velocity',
+        5: 'reward'
+    }
+
+    action_node = 2
+    reward_node = 5
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -402,7 +469,6 @@ class MountainCar(Environment):
             self.true_dag, create_using=nx.MultiDiGraph())
 
 
-
 #### Taxi ####
 
 class Taxi(Environment):
@@ -412,15 +478,16 @@ class Taxi(Environment):
     env = gym.make('Taxi-v3')
 
     true_dag = np.array([
-        [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = taxi row t
-        [0, 0, 0, 0, 1, 0, 1, 0, 0],  # 1 = taxi column t
-        [0, 0, 0, 0, 1, 0, 0, 1, 0],  # 2 = passenger location t
-        [0, 0, 0, 0, 1, 0, 0, 0, 1],  # 3 = destination t
-        [0, 0, 0, 0, 0, 1, 1, 1, 1],  # 4 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = taxi row t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = taxi column t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = passenger location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = destination t + 1
+        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],  # 0 = taxi row t
+        [0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 1 = taxi column t
+        [0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 2 = passenger location t
+        [0, 0, 0, 0, 1, 0, 0, 0, 1, 0],  # 3 = destination t
+        [0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  # 4 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = taxi row t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = taxi column t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = passenger location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destination t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]   # 9 = reward
     ])
 
     labels = [
@@ -435,6 +502,32 @@ class Taxi(Environment):
         'dest(t-1)',
         'action(t-1)'
     ]
+
+    actions = {
+        0: "Move south (down)",
+        1: "Move north (up)",
+        2: "Move east (right)",
+        3: "Move west (left)",
+        4: "Pickup passenger",
+        5: "Drop off passenger"
+    }
+
+    features = {
+        0: 'taxi row',
+        1: 'taxi column',
+        2: 'passenger location',
+        3: 'destination',
+        4: 'action',
+        5: 'taxi row',
+        6: 'taxi column',
+        7: 'passenger location',
+        8: 'destination',
+        9: 'action',
+        10: 'reward'
+    }
+
+    action_node = 4
+    reward_node = 10
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time

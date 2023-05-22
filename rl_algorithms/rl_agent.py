@@ -7,13 +7,13 @@ class RLAgent:
         action influence model, and for causal discovery. """
         pass
 
-    def generate_test_data(self, num_datapoints):
+    def generate_test_data_for_causal_discovery(self, num_datapoints):
         """ Generates random data from the trained RL agent for evaluation. """
         pass
 
-    def get_q_func(self):
+    def get_q_values(self, state):
         """ Returns the learnt Q (state-action value) function for the trained
-            RL agent. """
+            RL agent and given state. """
         pass
 
     def get_optimal_action(self, state):
