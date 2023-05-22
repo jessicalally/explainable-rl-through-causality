@@ -37,7 +37,6 @@ class PolicyGradient(RLAgent):
 
                 return weights, bias
 
-
     def __init__(self, environment):
         self.env = environment.env
         self.test_env = copy.deepcopy(self.env)
@@ -119,6 +118,7 @@ class PolicyGradient(RLAgent):
             done = False
 
             state, _ = self.env.reset()
+            prev_reward = 0
 
             while not done:
                 steps += 1
@@ -138,12 +138,13 @@ class PolicyGradient(RLAgent):
                 rewards.append(reward)
 
                 datapoint = np.concatenate(
-                    (state, np.array(chosen_action), next_state), axis=None)
+                    (state, np.array(chosen_action), np.array(prev_reward), next_state), axis=None)
                 causal_discovery_data_set.append(datapoint)
                 action_influence_data_set.append(
                     (state, chosen_action, reward, next_state))
 
                 state = next_state
+                prev_reward = reward
 
             log_prob_actions = torch.stack(log_prob_actions)
 
@@ -168,9 +169,10 @@ class PolicyGradient(RLAgent):
 
         print('Finished Policy Gradient...')
 
-        return np.array(action_influence_data_set), np.array(causal_discovery_data_set)
+        return np.array(action_influence_data_set), np.array(
+            causal_discovery_data_set)
 
-    def generate_test_data(
+    def generate_test_data_for_causal_discovery(
             self,
             num_datapoints=1000,
             episodes=2000,
@@ -191,10 +193,11 @@ class PolicyGradient(RLAgent):
             done = False
 
             state, _ = self.env.reset()
+            prev_reward = 0
 
             while not done and len(causal_discovery_data_set) < num_datapoints:
                 steps += 1
-                
+
                 action_prediction = self.policy(torch.DoubleTensor(state))
                 action_probability = F.softmax(action_prediction, dim=-1)
                 dist = distributions.Categorical(action_probability)
@@ -210,8 +213,74 @@ class PolicyGradient(RLAgent):
                 rewards.append(reward)
 
                 datapoint = np.concatenate(
-                    (state, np.array(chosen_action), next_state), axis=None)
+                    (state, np.array(chosen_action), np.array(prev_reward), next_state), axis=None)
                 causal_discovery_data_set.append(datapoint)
+
+                state = next_state
+                prev_reward = reward
+
+            test_reward = self.evaluate()
+
+            train_rewards.append(episode_reward)
+            test_rewards.append(test_reward)
+
+            mean_train_rewards = np.mean(train_rewards[-5:])
+            mean_test_rewards = np.mean(test_rewards[-5:])
+
+            if episode % timestep == 0:
+                print(
+                    f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
+
+            episode += 1
+            print(
+                f'Num datapoints collected so far: {len(causal_discovery_data_set)}')
+
+        print('Finished Policy Gradient...')
+
+        return np.array(causal_discovery_data_set)
+
+    def generate_test_data_for_scm(
+            self,
+            num_datapoints=1000,
+            episodes=2000,
+            gamma=0.99,
+            lr=0.01,
+            reward_threshold=800,
+            timestep=10):
+        scm_dataset = []
+        train_rewards = []
+        test_rewards = []
+        episode = 0
+
+        while len(scm_dataset) < num_datapoints:
+            steps = 0
+            episode_reward = 0
+            log_prob_actions = []
+            rewards = []
+            done = False
+
+            state, _ = self.env.reset()
+
+            while not done and len(scm_dataset) < num_datapoints:
+                steps += 1
+
+                action_prediction = self.policy(torch.DoubleTensor(state))
+                action_probability = F.softmax(action_prediction, dim=-1)
+                dist = distributions.Categorical(action_probability)
+
+                chosen_action = dist.sample()
+                log_prob_action = dist.log_prob(chosen_action)
+                log_prob_actions.append(log_prob_action)
+
+                next_state, reward, done, _, _ = self.env.step(
+                    chosen_action.item())
+                episode_reward += reward
+
+                rewards.append(reward)
+
+                datapoint = np.concatenate(
+                    (state, np.array(chosen_action), next_state, np.array(reward)), axis=None)
+                scm_dataset.append(datapoint)
 
                 state = next_state
 
@@ -227,22 +296,16 @@ class PolicyGradient(RLAgent):
                 print(
                     f'| Episode: {episode:3} | Mean Train Rewards: {mean_train_rewards:5.1f} | Mean Test Rewards: {mean_test_rewards:5.1f} |')
 
-            if mean_test_rewards >= reward_threshold:
-                print(test_rewards[-5:])
-                print(f'Reached reward threshold in {episode} episodes')
-                break
-
             episode += 1
+            print(f'Num datapoints collected so far: {len(scm_dataset)}')
 
         print('Finished Policy Gradient...')
 
-        return np.array(causal_discovery_data_set)
-    
+        return np.array(scm_dataset)
 
     def get_q_func(self):
         # TODO: can we use the action probabilities as an approximation?
         pass
-    
 
     def get_optimal_action(self, state):
         action_prediction = self.policy(torch.DoubleTensor(state))
