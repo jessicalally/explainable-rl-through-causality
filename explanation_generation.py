@@ -6,9 +6,10 @@ import torch
 
 
 class ExplanationGenerator():
-    def __init__(self, env, trained_scm, trained_rl_agent):
+    def __init__(self, env, trained_scm, trained_reward_scm, trained_rl_agent):
         self.env = env
         self.scm = trained_scm
+        self.reward_scm = trained_reward_scm
         self.rl_agent = trained_rl_agent
 
     # Why was [action] performed in this [state]?
@@ -16,7 +17,7 @@ class ExplanationGenerator():
     # Parameters:
     # state [just datapoints at time t]
     # action chosen at time t
-    def generate_why_explanation(self, state, action):
+    def generate_why_explanation(self, state, action, pertubation):
         explanation = f'{self.env.actions[int(action)]}.\n'
 
         # These are all the nodes that influence the action decision - which is right because we want
@@ -29,17 +30,17 @@ class ExplanationGenerator():
         # at nodes with indegree/=0 but that's ok
 
         # These are all the nodes that have out-degree=0
-        sink_nodes = [self.env.reward_node]
-        # TODO: have this as its own field in env
+        sink_nodes = self._get_sink_nodes(self.scm.causal_graph)
         action_node = self.env.action_node
 
         # Generate the causal chains for a single timestep
-        head_nodes = self.scm.causal_graph.predecessors(action_node)
+        head_nodes = [node for node in self.scm.causal_graph.predecessors(action_node)]
         print(f'head nodes {head_nodes}')
         print(f'sink nodes {sink_nodes}')
-        # TODO: don't use sink nodes use reward node instead
+
         one_step_causal_chains = self._get_one_step_causal_chains(
             head_nodes, sink_nodes, self.scm.causal_graph)
+        
         print(f'one step causal chains {one_step_causal_chains}')
         # TODO: how do we combine the causal chains so that they all end up at the reward?
         # In our causal graph, we want to put a connection from each node at time t+1 back to time t
@@ -53,20 +54,20 @@ class ExplanationGenerator():
 
         # Predict the values of all nodes using the trained structural
         # equations
-        datapoint = np.zeros(self.scm.env.reward_node + 1)
+        datapoint = np.zeros((self.scm.env.state_space * 2) + 1)
         for idx, val in enumerate(state):
             datapoint[idx] = val
 
-        datapoint[self.scm.env.state_space] = action
+        datapoint[self.scm.env.action_node] = action
         print(f"datapoint {datapoint}")
         predicted_nodes = self.scm.predict_from_scm(datapoint)
         print(f'predicted nodes {predicted_nodes}')
 
-        # TODO: return instead the whole list: when automatically detecting the 
-        # causal chains we might not generate a chain containing this node, so 
-        # we would then pick the next feature.
+        # Get the causal chains with the head node of the most important feature - 
+        # we do this in order of importance in case the most important feature has
+        # no detected causal chains (although this is unlikely)
         importance_vector = self._estimate_q_function_feature_importance(
-            state)
+            state, pertubation)
         
         features_by_importance = np.flip(np.argsort(importance_vector))
         print(f'features ordered by importance {features_by_importance}')
@@ -114,6 +115,11 @@ class ExplanationGenerator():
 
         # TODO: problems occur with the explanations with links between nodes at the same time step
 
+        predecessors_to_reward = [
+            node for node in 
+            self.reward_scm.causal_graph.predecessors(self.env.state_space)
+        ]
+
         for causal_chain in causal_chains:
             print(f'causal chain {causal_chain}')
             for i, step in enumerate(causal_chain):
@@ -123,14 +129,17 @@ class ExplanationGenerator():
                     # Always skip j == 0
                     if j == 0:
                         continue
-                    if node == self.env.reward_node:
+                    # TODO: it may be easier to change every node of the same feature to the same value at some point
+                    if node % (self.env.state_space + 1) in predecessors_to_reward:
                         # This must be the last node of the step, and the last step in the chain
-                        explanation += f'the reward. '
+                        explanation += (f'\n{self.env.features[node]} influences the reward.'.capitalize())
                         break
                     if j == 1 and i == 0:
                         explanation += (f'\n{self.env.features[node]} influences '.capitalize())
                     else:
                         explanation += f'{self.env.features[node]}, which influences '
+
+        # TODO: do we add something here about the predicted impact on the reward?
 
         # pd.DataFrame.from_dict(
         #     data=set(explanation),
@@ -152,9 +161,7 @@ class ExplanationGenerator():
         explanation = f'Because it is more desirable to do {self.env.actions[int(action)]}.\n'
 
         # These are all the nodes that have out-degree=0
-        # sink_nodes = self._get_sink_nodes(self.scm.causal_graph)
-        sink_nodes = self.env.reward_node
-        # TODO: have this as its own field in env
+        sink_nodes = self._get_sink_nodes(self.scm.causal_graph)
         action_node = self.env.action_node
 
         # Generate the causal chains for a single timestep
@@ -264,7 +271,7 @@ class ExplanationGenerator():
             head_nodes,
             sink_nodes,
             causal_graph):
-        action_node = self.scm.env.state_space
+        action_node = self.scm.env.action_node
 
         all_causal_chains = []
 
@@ -280,12 +287,10 @@ class ExplanationGenerator():
 
                 # We want all the causal chains that don't contain the action node, as these
                 # nodes have a causal effect on future nodes?
-                # TODO: actually not sure, maybe we want all chains? leave like
-                # this for now
                 all_chains_between_nodes = [
                     chain for chain in all_chains_between_nodes if action_node not in chain]
                 
-                # TODO: only take one step causal chains where the successor nodes are all in the future
+                # Take all chains where the successor node is in the future
                 all_chains_between_nodes = [
                     chain for chain in all_chains_between_nodes if chain[1] > self.env.action_node
                 ]
@@ -296,11 +301,11 @@ class ExplanationGenerator():
 
     def _generate_multistep_causal_chains(self, one_step_causal_chains):
         multi_step_causal_chains = []
-
-        for chain in one_step_causal_chains:
-            # TODO: replace with index of reward node
-            if chain[-1] == self.env.reward_node:
-                multi_step_causal_chains.append([chain])
+        
+        for chain in one_step_causal_chains: 
+            subchains = self._get_subchains_that_influence_reward(chain)
+            for subchain in subchains:
+                multi_step_causal_chains.append([subchain])
 
             else:
                 q = deque([[chain]])
@@ -312,13 +317,8 @@ class ExplanationGenerator():
                     # Find all chains that begin with the last node
                     poss_next_chains = [
                         next_chain for next_chain in one_step_causal_chains
-                        # TODO: this isn't quite right as theres a mix here
-                        # between 0-5 and 1-6 etc
-                        if next_chain[0] == chain[-1] - (self.scm.env.state_space + 1)
-                        # as we don't want to reuse chains in the same chain,
-                        # since the information
-                        and next_chain not in curr_chain
-                        # is already given to the user
+                        if next_chain[0] == chain[-1] % (self.scm.env.state_space + 1)
+                        and next_chain not in curr_chain # prevents cycles - we don't want to duplicate chains since this information is already given to the user
                     ]
 
                     # If there are no possible unused chains then this chain will
@@ -327,16 +327,31 @@ class ExplanationGenerator():
                         new_chain = curr_chain
                         new_chain.append(poss_next_chain)
 
-                        # TODO: replace with index to reward node
-                        if poss_next_chain[-1] == self.env.reward_node:
-                            multi_step_causal_chains.append(new_chain)
+                        subchains = self._get_subchains_that_influence_reward(chain)
+                        for subchain in subchains:
+                            multi_step_causal_chains.append([subchain])
 
                         else:
                             q.append(new_chain)
 
         return multi_step_causal_chains
+    
+    def _get_subchains_that_influence_reward(self, chain):
+        predecessors_to_reward = [
+            node for node in 
+            self.reward_scm.causal_graph.predecessors(self.env.state_space)
+        ]
 
-    def _estimate_q_function_feature_importance(self, state, pertubation=0.1):
+        subchains = []
+
+        for i in range(1, len(chain)):
+            if (chain[i] % (self.env.state_space + 1)) in predecessors_to_reward:
+                subchains.append(chain[:i+1]) # TODO: i or i+1
+
+        return subchains
+
+    def _estimate_q_function_feature_importance(self, state, pertubation):
+        min_pertubation = 0.001
         # TODO: should the pertubation be relative to the state feature bounds as well?? So that we change each feature by the same percentage
         # Without accounting for the state values, pertubation almost always causes the pole angular velocity to be the most importat state variable
         # and sometimes the pole angle
@@ -356,15 +371,13 @@ class ExplanationGenerator():
         for i in range(len(state)):
             pertubated_state = state
             # Applying a 1% pertubation
-            pertubated_state[i] *= 1.0 + pertubation
-            pertubated_state_tensor = torch.DoubleTensor(
-                pertubated_state).unsqueeze(0)
-            # print(f'pertubated state {pertubated_state}')
-            updated_q_value = q_values(
-                pertubated_state_tensor).cpu().data.numpy()[0]
-            # print(f'updated q values {updated_q_value}')
+            pertubated_state_value = max(min_pertubation, pertubated_state[i] * (1.0 + pertubation))
+            pertubated_state[i] = pertubated_state_value
+            print(f'pertubated state {pertubated_state}')
+            updated_q_values = self.rl_agent.get_q_values(pertubated_state)
+            print(f'updated q values {updated_q_values}')
             importance_vector[i] = (
-                abs(updated_q_value[action] - importance_vector[i]) / pertubation)
+                abs(updated_q_values[action] - importance_vector[i]) / pertubation)
 
         print(f"importance vector {importance_vector}")
 
