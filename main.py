@@ -263,17 +263,17 @@ def main(args):
     reward_scm_path = f"output/scm/learned_dag/reward{env.name}_{rl_agent.name}.pickle"
     os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
 
-    with open(scm_path, 'wb') as f:
-        pickle.dump(scm, f)
+    # with open(scm_path, 'wb') as f:
+    #     pickle.dump(scm, f)
 
-    with open(reward_scm_path, 'wb') as f:
-        pickle.dump(reward_scm, f)
+    # with open(reward_scm_path, 'wb') as f:
+    #     pickle.dump(reward_scm, f)
 
-    # with open(scm_path, 'rb') as f:
-    #     scm = pickle.load(f)
+    with open(scm_path, 'rb') as f:
+        scm = pickle.load(f)
 
-    # with open(reward_scm_path, 'rb') as f:
-    #     reward_scm = pickle.load(f)
+    with open(reward_scm_path, 'rb') as f:
+        reward_scm = pickle.load(f)
 
     ## Evaluation ##
 
@@ -288,15 +288,6 @@ def main(args):
 
     # accuracy = evaluation.task_prediction(data, scm)
     # print("Accuracy="+str(accuracy))
-
-    mse, action_predictions = evaluation.evaluate_fidelity(scm, test_data)
-    reward_mse, _ = evaluation.evaluate_fidelity(reward_scm, reward_test_data, REWARD_DAG=True)
-    print(met)
-    print("MSE=" + str(mse))
-    print("Correct action predictions=" + str(action_predictions))
-
-    print(reward_met.metrics)
-    print("MSE=" + str(reward_mse))
 
 #     # with open(f"{env.name}_{rl_agent.name}_metrics.txt", 'w') as f:
 #     #     f.write("MSE=" + str(mse))
@@ -328,6 +319,15 @@ def main(args):
     with open(f"{env.name}_{rl_agent.name}_explanations.txt", 'w') as f:
         f.write(str(why_explanations))
         f.write(str(why_not_explanations))
+
+    # mse, action_predictions = evaluation.evaluate_fidelity(scm, test_data)
+    # reward_mse, _ = evaluation.evaluate_fidelity(reward_scm, reward_test_data, REWARD_DAG=True)
+    # print(met)
+    # print("MSE=" + str(mse))
+    # print("Correct action predictions=" + str(action_predictions))
+
+    # print(reward_met.metrics)
+    # print("MSE=" + str(reward_mse))
 
 if __name__ == '__main__':
     args = parse_args()
