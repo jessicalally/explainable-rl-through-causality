@@ -106,59 +106,56 @@ def main(args):
     # Train agent from scratch or load
     # TODO: we have to use the training data, especially for cartpole, because a well-trained
     # agent never terminates, hence the reward is never 0.
-    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
+    # causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
 
     # with open(rl_agent_path,'rb') as agent_file:
     #     rl_agent = pickle.load(agent_file)
    
     ## Generate datasets ##
-    if len(causal_discovery_dataset) < 500000:
-        num_datapoints = 500000 - len(causal_discovery_dataset)
-        causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints)#, use_sum_rewards=True)
-        print(causal_discovery_dataset.shape)
-        print(reward_causal_discovery_dataset.shape)
-        print(causal_discovery_dataset_extended.shape)
-        print(reward_causal_discovery_dataset_extended.shape)
-        causal_discovery_dataset = np.append(causal_discovery_dataset, causal_discovery_dataset_extended, axis=0)
-        reward_causal_discovery_dataset = np.append(reward_causal_discovery_dataset, reward_causal_discovery_dataset_extended, axis=0)
+    # if len(causal_discovery_dataset) < 500000:
+    #     num_datapoints = 500000 - len(causal_discovery_dataset)
+    #     causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints)#, use_sum_rewards=True)
+    #     print(causal_discovery_dataset.shape)
+    #     print(reward_causal_discovery_dataset.shape)
+    #     print(causal_discovery_dataset_extended.shape)
+    #     print(reward_causal_discovery_dataset_extended.shape)
+    #     causal_discovery_dataset = np.append(causal_discovery_dataset, causal_discovery_dataset_extended, axis=0)
+    #     reward_causal_discovery_dataset = np.append(reward_causal_discovery_dataset, reward_causal_discovery_dataset_extended, axis=0)
 
-    causal_discovery_dataset = causal_discovery_dataset[:500000]
-    reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000]
+    # causal_discovery_dataset = causal_discovery_dataset[:500000]
+    # reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000]
 
-    print(causal_discovery_dataset.shape)
-    print(reward_causal_discovery_dataset.shape)
+    # print(causal_discovery_dataset.shape)
+    # print(reward_causal_discovery_dataset.shape)
 
     dataset_path = f"output/causal_discovery_dataset/test/causal{env.name}_{rl_agent.name}.pickle"
     os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
     reward_dataset_path = f"output/causal_discovery_dataset/test/reward{env.name}_{rl_agent.name}.pickle"
     os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
 
-    with open(rl_agent_path, 'wb') as agent_file:
-        pickle.dump(rl_agent, agent_file)
+    # with open(rl_agent_path, 'wb') as agent_file:
+    #     pickle.dump(rl_agent, agent_file)
 
-    with open(dataset_path, 'wb') as dataset_file:
-        pickle.dump(causal_discovery_dataset, dataset_file)
+    # with open(dataset_path, 'wb') as dataset_file:
+    #     pickle.dump(causal_discovery_dataset, dataset_file)
 
-    with open(reward_dataset_path, 'wb') as dataset_file:
-        pickle.dump(reward_causal_discovery_dataset, dataset_file)
+    # with open(reward_dataset_path, 'wb') as dataset_file:
+    #     pickle.dump(reward_causal_discovery_dataset, dataset_file)
 
-    # with open(dataset_path, 'rb') as dataset_file:
-    #     causal_discovery_dataset = pickle.load(dataset_file)
+    with open(rl_agent_path, 'rb') as rl_agent_file:
+        rl_agent = pickle.load(rl_agent_file)
 
-    # with open(reward_dataset_path, 'rb') as dataset_file:
-    #     reward_causal_discovery_dataset = pickle.load(dataset_file)
+    with open(dataset_path, 'rb') as dataset_file:
+        causal_discovery_dataset = pickle.load(dataset_file)
 
+    with open(reward_dataset_path, 'rb') as dataset_file:
+        reward_causal_discovery_dataset = pickle.load(dataset_file)
 
-    # Or load given datasets
-
-    # with open(dataset_path, 'rb') as dataset_file:
-    #     causal_discovery_dataset = pickle.load(dataset_file)
 
     # causal_discovery_dataset = np.loadtxt("output/causal_discovery_dataset/starcraft_a2c.csv", delimiter=',', encoding="utf_8_sig")
-    causal_discovery_dataset = causal_discovery_dataset[:, :-env.state_space]
     print(causal_discovery_dataset.shape)
     ## Learn causal graph ##
-    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset, env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
+    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset[:, :-env.state_space], env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
     
     forbidden_edges = [(i, j) for i, j in itertools.product(range(env.state_space), range(env.state_space))]
     required_edges = []
@@ -219,11 +216,11 @@ def main(args):
 
     ## Train structural causal model ##
 
-#     scm_dataset_path = f"output/scm_dataset/test/causal{env.name}_{rl_agent.name}.pickle"
-#     os.makedirs(os.path.dirname(scm_dataset_path), exist_ok=True)
+    # scm_dataset_path = f"output/scm_dataset/test/causal{env.name}_{rl_agent.name}.pickle"
+    # os.makedirs(os.path.dirname(scm_dataset_path), exist_ok=True)
 
-#     reward_scm_dataset_path = f"output/scm_dataset/test/reward{env.name}_{rl_agent.name}.pickle"
-#     os.makedirs(os.path.dirname(reward_scm_dataset_path), exist_ok=True)
+    # reward_scm_dataset_path = f"output/scm_dataset/test/reward{env.name}_{rl_agent.name}.pickle"
+    # os.makedirs(os.path.dirname(reward_scm_dataset_path), exist_ok=True)
 
 #     num_datapoints = 500000
 #     # TODO: these two functions are the same now
@@ -242,86 +239,95 @@ def main(args):
 #     # with open(reward_scm_dataset_path, 'rb') as dataset_file:
 #     #     reward_scm_dataset = pickle.load(dataset_file)
 
-#     scm = StructuralCausalModel(
-#         env,
-#         scm_dataset,
-#         learned_causal_graph
-#     )
+    # TODO: can we use the same dataset or should we generate a second dataset?
+    scm = StructuralCausalModel(
+        env,
+        causal_discovery_dataset,
+        learned_causal_graph
+    )
 
-#     scm.train()
+    scm.train()
 
-#     reward_scm = StructuralCausalModel(
-#         env,
-#         reward_scm_dataset,
-#         learned_reward_causal_graph,
-#         for_reward = True,
-#     )
+    reward_scm = StructuralCausalModel(
+        env,
+        reward_causal_discovery_dataset,
+        learned_reward_causal_graph,
+        for_reward = True,
+    )
 
-#     reward_scm.train()
+    reward_scm.train()
 
-#     # scm_path = f"output/scm/learned_dag/{env.name}_{rl_agent.name}.pickle"
-#     # os.makedirs(os.path.dirname(scm_path), exist_ok=True)
+    scm_path = f"output/scm/learned_dag/causal{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_path), exist_ok=True)
 
-#     # # with open(scm_path, 'wb') as scm_file:
-#     # #     pickle.dump(scm, scm_file)
+    reward_scm_path = f"output/scm/learned_dag/reward{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
 
-#     # with open(scm_path, 'rb') as scm_file:
-#         # scm = pickle.load(scm_file)
+    with open(scm_path, 'wb') as f:
+        pickle.dump(scm, f)
 
-#     ## Evaluation ##
+    with open(reward_scm_path, 'wb') as f:
+        pickle.dump(reward_scm, f)
 
-#     num_datapoints = 10000
+    # with open(scm_path, 'rb') as f:
+    #     scm = pickle.load(f)
 
-#     test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
-#     print(test_data.shape)
-#     rnd_indices = np.random.choice(len(test_data), 2500)
-#     test_data = test_data[rnd_indices]
+    # with open(reward_scm_path, 'rb') as f:
+    #     reward_scm = pickle.load(f)
 
-#     print(f'Data: {test_data.shape}')
+    ## Evaluation ##
 
-#     # accuracy = evaluation.task_prediction(data, scm)
-#     # print("Accuracy="+str(accuracy))
+    num_datapoints = 10000
 
-#     mse, action_predictions = evaluation.evaluate_fidelity(scm, test_data)
-#     print(met)
-#     print("MSE=" + str(mse))
-#     print("Correct action predictions=" + str(action_predictions))
+    test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints)#use_sum_rewards=True)
+    print(test_data.shape)
+    rnd_indices = np.random.choice(len(test_data), 2500)
+    test_data = test_data[rnd_indices]
 
-#     mse, action_predictions = evaluation.evaluate_fidelity(reward_scm, reward_test_data, REWARD_DAG=True)
-#     print(reward_met.metrics)
-#     print("MSE=" + str(mse))
-#     print("Correct action predictions=" + str(action_predictions))
+    print(f'Data: {test_data.shape}')
+
+    # accuracy = evaluation.task_prediction(data, scm)
+    # print("Accuracy="+str(accuracy))
+
+    mse, action_predictions = evaluation.evaluate_fidelity(scm, test_data)
+    reward_mse, _ = evaluation.evaluate_fidelity(reward_scm, reward_test_data, REWARD_DAG=True)
+    print(met)
+    print("MSE=" + str(mse))
+    print("Correct action predictions=" + str(action_predictions))
+
+    print(reward_met.metrics)
+    print("MSE=" + str(reward_mse))
 
 #     # with open(f"{env.name}_{rl_agent.name}_metrics.txt", 'w') as f:
 #     #     f.write("MSE=" + str(mse))
 #     #     f.write("MSE ignoring reward=" + str(mse_ignoring_reward))
 #     #     f.write("Correct action predictions=" + str(action_predictions))
 
-#     # ## Processing explanations ##
-#     # why_explanations = set()
-#     # why_not_explanations = set()
+    ## Processing explanations ##
+    why_explanations = set()
+    why_not_explanations = set()
 
-#     # explanation_generator = ExplanationGenerator(env, scm, rl_agent)
-#     # for i in range(10):
-#     #     if env.name == "taxi":
-#     #         pertubation = 1.0
-#     #     else:
-#     #         pertubation = 0.01
+    explanation_generator = ExplanationGenerator(env, scm, reward_scm, rl_agent)
+    for i in range(10):
+        if env.name == "taxi":
+            pertubation = 1.0
+        else:
+            pertubation = 0.01
 
-#     #     example_state = test_data[i][:env.state_space]
-#     #     example_action = test_data[i][env.state_space]
-#     #     example_counter_action = choice([i for i in range(env.action_space) if i != example_action])
-#     #     why_explanation = explanation_generator.generate_why_explanation(example_state, example_action, pertubation)
-#     #     why_explanations.add(why_explanation)
-#     #     print(f'Why {env.actions[example_action]}?\n {why_explanation}')
+        example_state = test_data[i][:env.state_space]
+        example_action = test_data[i][env.state_space]
+        example_counter_action = choice([i for i in range(env.action_space) if i != example_action])
+        why_explanation = explanation_generator.generate_why_explanation(example_state, example_action, pertubation)
+        why_explanations.add(why_explanation)
+        print(f'Why {env.actions[example_action]}?\n {why_explanation}')
 
-#         # why_not_explanation = explanation_generator.generate_why_not_explanation(example_state, example_action, example_counter_action, pertubation)
-#         # print(f'Why not {env.actions[example_counter_action]}?\n {why_not_explanation}')
-#         # why_not_explanations.add(why_not_explanation)
+        # why_not_explanation = explanation_generator.generate_why_not_explanation(example_state, example_action, example_counter_action, pertubation)
+        # print(f'Why not {env.actions[example_counter_action]}?\n {why_not_explanation}')
+        # why_not_explanations.add(why_not_explanation)
     
-#     # with open(f"{env.name}_{rl_agent.name}_explanations.txt", 'w') as f:
-#     #     f.write(str(why_explanations))
-#     #     f.write(str(why_not_explanations))
+    with open(f"{env.name}_{rl_agent.name}_explanations.txt", 'w') as f:
+        f.write(str(why_explanations))
+        f.write(str(why_not_explanations))
 
 if __name__ == '__main__':
     args = parse_args()
