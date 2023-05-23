@@ -1,4 +1,5 @@
 from collections import deque
+import itertools
 import networkx as nx
 import numpy as np
 import pandas as pd
@@ -82,7 +83,9 @@ class ExplanationGenerator():
             print(f'feature {feature} : {feature_causal_chains}')
             
             if len(feature_causal_chains) > 0:
-                causal_chains = feature_causal_chains
+                feature_causal_chains.sort()
+                # removes duplicates
+                causal_chains = list(chain for chain, _ in itertools.groupby(feature_causal_chains))
                 break
 
         if len(causal_chains) == 0:
@@ -108,7 +111,7 @@ class ExplanationGenerator():
             else:
                 explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value[0]:3.3f}) '
 
-        explanation += 'in the next time step.\n Because: '
+        explanation += 'in the next time step.\n Because: \n'
 
         # TODO: do feature influence the reward jointly or independently? How might we be able to tell?
         # Can we look at the weightings of the linear regression model?
@@ -130,16 +133,14 @@ class ExplanationGenerator():
                     if j == 0:
                         continue
                     # TODO: it may be easier to change every node of the same feature to the same value at some point
-                    if node % (self.env.state_space + 1) in predecessors_to_reward:
+                    if i == len(causal_chain) - 1 and j == len(step) - 1:
                         # This must be the last node of the step, and the last step in the chain
-                        explanation += (f'\n{self.env.features[node]} influences the reward.'.capitalize())
+                        explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
                         break
                     if j == 1 and i == 0:
-                        explanation += (f'\n{self.env.features[node]} influences '.capitalize())
+                        explanation += (f'{self.env.features[node]} influences '.capitalize())
                     else:
                         explanation += f'{self.env.features[node]}, which influences '
-
-        # TODO: do we add something here about the predicted impact on the reward?
 
         # pd.DataFrame.from_dict(
         #     data=set(explanation),
