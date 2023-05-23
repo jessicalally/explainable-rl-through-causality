@@ -116,13 +116,6 @@ class ExplanationGenerator():
         # TODO: do feature influence the reward jointly or independently? How might we be able to tell?
         # Can we look at the weightings of the linear regression model?
 
-        # TODO: problems occur with the explanations with links between nodes at the same time step
-
-        predecessors_to_reward = [
-            node for node in 
-            self.reward_scm.causal_graph.predecessors(self.env.state_space)
-        ]
-
         for causal_chain in causal_chains:
             print(f'causal chain {causal_chain}')
             for i, step in enumerate(causal_chain):
@@ -158,7 +151,7 @@ class ExplanationGenerator():
     # actual action chosen at time t
     # counterfactual action to be taken at time t
 
-    def generate_why_not_explanation(self, state, action, counter_action):
+    def generate_why_not_explanation(self, state, action, counter_action, pertubation):
         explanation = f'Because it is more desirable to do {self.env.actions[int(action)]}.\n'
 
         # These are all the nodes that have out-degree=0
@@ -166,91 +159,104 @@ class ExplanationGenerator():
         action_node = self.env.action_node
 
         # Generate the causal chains for a single timestep
-        head_nodes = self.scm.causal_graph.predecessors(action_node)
+        head_nodes = [node for node in self.scm.causal_graph.predecessors(action_node)]
         print(f'head nodes {head_nodes}')
         one_step_causal_chains = self._get_one_step_causal_chains(
             head_nodes, sink_nodes, self.scm.causal_graph)
         print(f'one step causal chains {one_step_causal_chains}')
 
-        causal_chains = self._generate_multistep_causal_chains(
+        multistep_causal_chains = self._generate_multistep_causal_chains(
             one_step_causal_chains)
-        print(f'multistep causal chains {causal_chains}')
+        print(f'multistep causal chains {multistep_causal_chains}')
 
-        # # Predict the values of all nodes using the trained structural
-        # # equations
-        # datapoint = np.zeros((self.scm.env.state_space * 2) + 1)
-        # for idx, val in enumerate(state):
-        #     datapoint[idx] = val
+        # Predict the values of all nodes using the trained structural
+        # equations
+        datapoint = np.zeros((self.env.state_space * 2) + 1)
+        for idx, val in enumerate(state):
+            datapoint[idx] = val
 
-        # datapoint[self.scm.env.state_space] = action
-        # print(f"datapoint {datapoint}")
-        # predicted_nodes = self.scm.predict_from_scm(datapoint)
-        # print(f'predicted nodes {predicted_nodes}')
+        datapoint[self.env.action_node] = action
+        print(f"datapoint {datapoint}")
+        predicted_nodes = self.scm.predict_from_scm(datapoint)
+        print(f'predicted nodes {predicted_nodes}')
 
-        # # Predict the values of all nodes with the counterfactual action using
-        # # the trained SCM
-        # counter_datapoint = np.zeros((self.scm.env.state_space * 2) + 1)
-        # for idx, val in enumerate(state):
-        #     counter_datapoint[idx] = val
+        # Predict the values of all nodes with the counterfactual action using
+        # the trained SCM
+        counter_datapoint = np.zeros((self.env.state_space * 2) + 1)
+        for idx, val in enumerate(state):
+            counter_datapoint[idx] = val
 
-        # counter_datapoint[self.scm.env.state_space] = counter_action
-        # print(f"counter datapoint {counter_datapoint}")
-        # predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint)
-        # print(f'predicted_counter_nodes {predicted_counter_nodes}')
+        counter_datapoint[self.env.action_node] = counter_action
+        print(f"counter datapoint {counter_datapoint}")
+        predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint)
+        print(f'predicted_counter_nodes {predicted_counter_nodes}')
 
-        # most_importance_feature = self._estimate_q_function_feature_importance(
-        #     state)
-        # print(f"most important feature {most_importance_feature}")
+        importance_vector = self._estimate_q_function_feature_importance(state, pertubation=pertubation)  
+        features_by_importance = np.flip(np.argsort(importance_vector))
+        print(f'features ordered by importance {features_by_importance}')
 
-        # print(f'multistep causal chains {causal_chains}')
+        causal_chains = []
 
-        # # Get all causal chains with this feature as head - we want to use
-        # # these as explanation
-        # causal_chains = [
-        #     chain for chain in causal_chains if chain[0][0] == most_importance_feature]
-        # print(f'relevant causal chains {causal_chains}')
+        for feature in features_by_importance:  
+            # Get all causal chains with this feature as head - we want to use
+            # these as explanation
+            feature_causal_chains = [
+                chain for chain in multistep_causal_chains if chain[0][0] == feature]
+            
+            print(f'feature {feature} : {feature_causal_chains}')
+            
+            if len(feature_causal_chains) > 0:
+                feature_causal_chains.sort()
+                # removes duplicates
+                causal_chains = list(chain for chain, _ in itertools.groupby(feature_causal_chains))
+                break
 
-        # # Get all nodes that are immediately affected by the current action
-        # imm_nodes = {chain[0][1] for chain in causal_chains}
-        # print(f'imm nodes {imm_nodes}')
+        if len(causal_chains) == 0:
+            return "Error: no appropiate causal chains found"
 
-        # # Get diff between current node value and predicted node value for
-        # # the next node in the causal chain
+        # Get all nodes that are immediately affected by the current action
+        imm_nodes = {chain[0][1] for chain in causal_chains}
+        print(f'imm nodes {imm_nodes}')
 
-        # for idx, imm_node in enumerate(imm_nodes):
-        #     curr_node_value = datapoint[imm_node -
-        #                                 (self.scm.env.state_space + 1)]
-        #     predicted_node_value = predicted_nodes[imm_node][0]
-        #     predicted_counter_node_value = predicted_counter_nodes[imm_node][0]
-        #     diff = predicted_node_value - curr_node_value
-        #     # TODO: can the diff be 0
-        #     direction = 'increase' if diff > 0 else 'decrease'
+        # Get diff between current node value and predicted node value for
+        # the next node in the causal chain
 
-        #     if idx == 0:
-        #         explanation += f'In order to {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
-        #         # TODO: add the rather than case?
-        #     else:
-        #         explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
-        #         # TODO: add the rather than case?
+        for idx, imm_node in enumerate(imm_nodes):
+            curr_node_value = datapoint[imm_node -
+                                        (self.scm.env.state_space + 1)]
+            predicted_node_value = predicted_nodes[imm_node][0]
+            predicted_counter_node_value = predicted_counter_nodes[imm_node][0]
+            diff = predicted_node_value - curr_node_value
+            # TODO: can the diff be 0
+            direction = 'increase' if diff > 0 else 'decrease'
 
-        # # TODO: we would like to learn which variables affect the reward, and
-        # # by roughly how much
-        # explanation += 'in the next time step.\n Because:'
+            if idx == 0:
+                explanation += f'In order to {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
+                # TODO: add the rather than case?
+            else:
+                explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
+                # TODO: add the rather than case?
 
-        # for causal_chain in causal_chains:
-        #     print(f'causal chain {causal_chain}')
-        #     for idx, step in enumerate(causal_chain):
-        #         print(f'step {step}')
-        #         # TODO: replace with index to reward node
-        #         if step[-1] == self.env.reward_node:
-        #             if idx == 0:
-        #                 explanation += f'\n{self.env.features[step[-1]]} influences the reward.'
-        #             else:
-        #                 explanation += f'{self.env.features[step[-1]]}, which influences the reward.'
-        #         elif idx == 0:
-        #             explanation += f'\n{self.env.features[step[-1]]} influences '
-        #         else:
-        #             explanation += f'{self.env.features[step[-1]]}, which influences '
+        explanation += 'in the next time step.\n Because: \n'
+
+        for causal_chain in causal_chains:
+            print(f'causal chain {causal_chain}')
+            for i, step in enumerate(causal_chain):
+                print(f'step {step}')
+                # TODO: replace with idx to reward node
+                for j, node in enumerate(step):
+                    # Always skip j == 0
+                    if j == 0:
+                        continue
+                    # TODO: it may be easier to change every node of the same feature to the same value at some point
+                    if i == len(causal_chain) - 1 and j == len(step) - 1:
+                        # This must be the last node of the step, and the last step in the chain
+                        explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
+                        break
+                    if j == 1 and i == 0:
+                        explanation += (f'{self.env.features[node]} influences '.capitalize())
+                    else:
+                        explanation += f'{self.env.features[node]}, which influences '
 
         return explanation
 
