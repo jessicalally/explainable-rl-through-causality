@@ -51,20 +51,26 @@ class Cartpole(Environment):
     env = gym.make('CartPole-v1')
 
     true_dag = np.array([
-        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],  # 0 = pos t
-        [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],  # 1 = velocity t
-        [0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 2 = pole angle t
-        [0, 0, 0, 0, 1, 0, 0, 1, 1, 0],  # 3 = angular velocity t
-        [0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  # 4 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 5 = pos t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = pole angle t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = angular t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 9 = reward t+1
+        [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = pos t
+        [0, 0, 0, 0, 1, 1, 1, 0, 0],  # 1 = velocity t
+        [0, 0, 0, 0, 1, 0, 0, 1, 0],  # 2 = pole angle t
+        [0, 0, 0, 0, 1, 0, 0, 1, 1],  # 3 = angular velocity t
+        [0, 0, 0, 0, 0, 1, 1, 1, 1],  # 4 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = pos t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = pole angle t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = angular t+1
+    ])
+
+    reward_true_dag = np.array([
+        [0, 0, 0, 0, 1], # 0 = pos
+        [0, 0, 0, 0, 0], # 1 = velocity
+        [0, 0, 0, 0, 1], # 2 = pole angle
+        [0, 0, 0, 0, 0], # 3 = angular velocity
+        [0, 0, 0, 0, 0], # 4 = reward
     ])
 
     action_node = 4
-    reward_node = 9
 
     labels = [
         'pos(t)',
@@ -125,22 +131,14 @@ class Cartpole(Environment):
         (8, 2),
         (8, 3),
         (8, 4),
-        # reward does not have an affect on the state
-        (9, 0),
-        (9, 1),
-        (9, 2),
-        (9, 3),
-        (9, 4),
-        (9, 5),
-        (9, 6),
-        (9, 7),
-        (9, 8),
-        # past state can't affect reward
-        (0, 9),
-        (1, 9),
-        (2, 9),
-        (3, 9),
-        (4, 9),
+    ]
+
+    # We only want the edges from state variables to the reward, so forbid all other edges
+    forbidden_edges_reward = [
+        (4, 0),
+        (4, 1),
+        (4, 2),
+        (4, 3),
     ]
 
     # Assumption: all past state variables affect action choice and action
@@ -166,11 +164,6 @@ class LunarLander(Environment):
 
     env = gym.make(
         "LunarLander-v2",
-        # continuous=False,
-        # gravity=-10.0,
-        # enable_wind=False,
-        # wind_power=15.0,
-        # turbulence_power=1.5,
     )
 
     actions = {
@@ -207,27 +200,37 @@ class LunarLander(Environment):
     # + 10 * state[6]
     # + 10 * state[7]
     action_node = 8
-    reward_node = 17
 
     true_dag = np.array([
-        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
-        [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0],  # 1 = y coord t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],  # 2 = x velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0],  # 3 = y velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0],  # 4 = angle t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0],  # 5 = angular velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = left leg in contact with ground t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = right leg in contact with ground t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 0],  # 8 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 9 = x coord t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 10 = y coord t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 11 = x velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 12 = y velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 13 = angle t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = angular velocity t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 15 = left leg in contact with ground t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 16 = right leg in contact with ground t+1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]   # 17 = reward
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0],  # 0 = x coord t
+        [0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0],  # 1 = y coord t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0],  # 2 = x velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0],  # 3 = y velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0],  # 4 = angle t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0],  # 5 = angular velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = left leg in contact with ground t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = right leg in contact with ground t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1],  # 8 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # 9 = x coord t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1],  # 10 = y coord t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = x velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = y velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = angle t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = angular velocity t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 15 = left leg in contact with ground t+1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16 = right leg in contact with ground t+1
+    ])
+
+    reward_true_dag = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 0 = x coord t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 1 = y coord t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 2 = x velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 3 = y velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 4 = angle t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0], # 5 = angular velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 6 = left leg t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 7 = right leg t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0], # 8 = reward
     ])
 
     labels = [
@@ -249,6 +252,18 @@ class LunarLander(Environment):
         'left-leg(t-1)',
         'right-leg(t-1)',
         'action(t-1)']
+    
+    forbidden_edges_reward = [
+       (8, 0),
+       (8, 1),
+       (8, 2),
+       (8, 3),
+       (8, 4),
+       (8, 5),
+       (8, 6),
+       (8, 7),
+       (8, 8),
+    ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -334,35 +349,6 @@ class LunarLander(Environment):
         (16, 7),
         (16, 8),
         (16, 9),
-
-        # Specific reward assumptions
-        (17, 0),
-        (17, 1),
-        (17, 2),
-        (17, 3),
-        (17, 4),
-        (17, 5),
-        (17, 6),
-        (17, 7),
-        (17, 8),
-        (17, 9),
-        (17, 10),
-        (17, 11),
-        (17, 12),
-        (17, 13),
-        (17, 14),
-        (17, 15),
-        (17, 16),
-        (17, 17),
-        (0, 17),
-        (1, 17),
-        (2, 17),
-        (3, 17),
-        (4, 17),
-        (5, 17),
-        (6, 17),
-        (7, 17),
-        (8, 17),
     ]
 
     # Assumption: all past state variables affect action choice and action
@@ -415,6 +401,12 @@ class MountainCar(Environment):
         [0, 0, 0, 0, 0, 0]   # 5 = reward
     ])
 
+    reward_true_dag = np.array([
+        [0, 0, 1], # 0 = pos t
+        [0, 0, 0], # 1 = velocity t
+        [0, 0, 0], # 2 = reward
+    ])
+
     labels = [
         'pos(t)',
         'velocity(t)',
@@ -440,7 +432,12 @@ class MountainCar(Environment):
     }
 
     action_node = 2
-    reward_node = 5
+
+    forbidden_edges_reward = [
+        (2, 0),
+        (2, 1),
+        (2, 2),
+    ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -478,17 +475,25 @@ class Taxi(Environment):
     env = gym.make('Taxi-v3')
 
     true_dag = np.array([
-        [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],  # 0 = taxi row t
-        [0, 0, 0, 0, 1, 0, 1, 0, 0, 0],  # 1 = taxi column t
-        [0, 0, 0, 0, 1, 0, 0, 1, 0, 0],  # 2 = passenger location t
-        [0, 0, 0, 0, 1, 0, 0, 0, 1, 0],  # 3 = destination t
-        [0, 0, 0, 0, 0, 1, 1, 1, 1, 0],  # 4 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = taxi row t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = taxi column t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = passenger location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destination t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]   # 9 = reward
+        [0, 0, 0, 0, 1, 1, 0, 0, 0],  # 0 = taxi row t
+        [0, 0, 0, 0, 1, 0, 1, 0, 0],  # 1 = taxi column t
+        [0, 0, 0, 0, 1, 0, 0, 1, 0],  # 2 = passenger location t
+        [0, 0, 0, 0, 1, 0, 0, 0, 1],  # 3 = destination t
+        [0, 0, 0, 0, 0, 1, 1, 1, 1],  # 4 = action t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = taxi row t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = taxi column t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 7 = passenger location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = destination t + 1
     ])
+
+    reward_true_dag = np.array([
+        [0, 0, 0, 0, 0], # 0 = taxi row t
+        [0, 0, 0, 0, 0], # 1 = taxi column t
+        [0, 0, 0, 0, 1], # 2 = passenger location t
+        [0, 0, 0, 0, 1], # 3 = destination t
+        [0, 0, 0, 0, 0], # 4 = reward t
+    ])
+
 
     labels = [
         'row(t)',
@@ -527,7 +532,14 @@ class Taxi(Environment):
     }
 
     action_node = 4
-    reward_node = 10
+
+    forbidden_edges_reward = [
+        (4, 0),
+        (4, 1),
+        (4, 2),
+        (4, 3),
+        (4, 4),
+    ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
     # time
@@ -587,43 +599,38 @@ class Starcraft(Environment):
     env = None  # TODO
 
     true_dag = np.array([
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0,
-            0, 0, 0, 0],  # 0 = worker supply number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1,
-            0, 0, 0, 0],  # 1 = supply depot number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0,
-            1, 0, 0, 0, 0],  # 2 = barracks number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1,
-            0, 0, 0, 1, 1],  # 3 = enemy location t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-            1, 0, 0, 1, 1],  # 4 = ally unit number t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-            0, 1, 0, 1, 1],  # 5 = ally unit health t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-            0, 1, 1, 1],  # 6 = ally unit location t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-            0, 0, 0, 1, 0],  # 7 = destroyed units t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0,
-            0, 0, 0, 1],  # 8 = destroyed buildings t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 0, 0],  # 1 = supply depot number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 0, 0],  # 2 = barracks number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1],  # 3 = enemy location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 1, 1],  # 4 = ally unit number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 1, 1],  # 5 = ally unit health t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1],  # 6 = ally unit location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0],  # 7 = destroyed units t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destroyed buildings t
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1],  # 9 = action t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0],  # 10 = worker supply number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0],  # 11 = supply depot number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0],  # 12 = barracks number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0],  # 13 = enemy location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0],  # 14 = ally unit number t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0],  # 15 = ally unit health t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0],  # 16 = ally unit location t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0, 0],  # 17 = destroyed units t + 1
-        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-            0, 0, 0],  # 18 = destroyed buildings t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 10 = worker supply number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 11 = supply depot number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 12 = barracks number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 13 = enemy location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 14 = ally unit number t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 15 = ally unit health t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 16 = ally unit location t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 17 = destroyed units t + 1
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 18 = destroyed buildings t + 1
+    ])
+
+    reward_true_dag = np.array([
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 1 = supply depot number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 2 = barracks number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 3 = enemy location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 4 = ally unit number t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = ally unit health t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 6 = ally unit location t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = destroyed units t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],  # 8 = destroyed buildings t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],  # 9 = reward t
     ])
 
     labels = [
@@ -647,6 +654,19 @@ class Starcraft(Environment):
         'Du(t-1)',
         'Db(t-1)'
         'A(t-1)',
+    ]
+
+    forbidden_edges_reward = [
+        (9, 0),
+        (9, 1),
+        (9, 2),
+        (9, 3),
+        (9, 4),
+        (9, 5),
+        (9, 6),
+        (9, 7),
+        (9, 8),
+        (9, 9),
     ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
