@@ -43,11 +43,6 @@ class ExplanationGenerator():
             head_nodes, sink_nodes, self.scm.causal_graph)
         
         print(f'one step causal chains {one_step_causal_chains}')
-        # TODO: how do we combine the causal chains so that they all end up at the reward?
-        # In our causal graph, we want to put a connection from each node at time t+1 back to time t
-        # all_simple_paths has an optional cutoff parameter for cutting chains off at a certain length
-        # But we want to do this by marking edges as visited instead? So that we don't use the same relationships
-        # twice in explanation
 
         multistep_causal_chains = self._generate_multistep_causal_chains(
             one_step_causal_chains)
@@ -73,6 +68,7 @@ class ExplanationGenerator():
         features_by_importance = np.flip(np.argsort(importance_vector))
         print(f'features ordered by importance {features_by_importance}')
         causal_chains = []
+        most_important_feature = 0
 
         for feature in features_by_importance:  
             # Get all causal chains with this feature as head - we want to use
@@ -83,6 +79,7 @@ class ExplanationGenerator():
             print(f'feature {feature} : {feature_causal_chains}')
             
             if len(feature_causal_chains) > 0:
+                most_important_feature = feature
                 feature_causal_chains.sort()
                 # removes duplicates
                 causal_chains = list(chain for chain, _ in itertools.groupby(feature_causal_chains))
@@ -99,28 +96,28 @@ class ExplanationGenerator():
         # the next node in the causal chain
 
         for idx, imm_node in enumerate(imm_nodes):
-            curr_node_value = datapoint[imm_node -
-                                        (self.scm.env.state_space + 1)]
+            curr_node_value = state[imm_node - (self.scm.env.state_space + 1)]
             predicted_node_value = predicted_nodes[imm_node]
             diff = predicted_node_value - curr_node_value
-            # TODO: can the diff be 0
-            direction = 'increase' if diff > 0 else 'decrease'
+
+            if diff > 0.00001:
+                direction = 'increase'
+            elif diff < 0.00001:
+                direction = 'decrease'
+            else:
+                direction = 'maintain'
 
             if idx == 0:
-                explanation += f'To {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value[0]:3.3f}) '
+                explanation += f'To {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.5f} to {predicted_node_value[0]:3.5f}) '
             else:
-                explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value[0]:3.3f}) '
+                explanation += f'\n and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.5f} to {predicted_node_value[0]:3.5f}) '
 
-        explanation += 'in the next time step.\n Because: \n'
-
-        # TODO: do feature influence the reward jointly or independently? How might we be able to tell?
-        # Can we look at the weightings of the linear regression model?
+        explanation += f'in the next time step from the current state \n{self._convert_state_to_text(state)}.\n Because:'
 
         for causal_chain in causal_chains:
             print(f'causal chain {causal_chain}')
             for i, step in enumerate(causal_chain):
                 print(f'step {step}')
-                # TODO: replace with idx to reward node
                 for j, node in enumerate(step):
                     # Always skip j == 0
                     if j == 0:
@@ -131,16 +128,16 @@ class ExplanationGenerator():
                         explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
                         break
                     if j == 1 and i == 0:
-                        explanation += (f'{self.env.features[node]} influences '.capitalize())
+                        explanation += (f'\n {self.env.features[node]} influences '.capitalize())
                     else:
                         explanation += f'{self.env.features[node]}, which influences '
 
-        # pd.DataFrame.from_dict(
-        #     data=set(explanation),
-        #     orient='index').to_csv(
-        #     f'why_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
-        #     mode='a',
-        #     header=False)
+        pd.DataFrame.from_dict(
+            data={most_important_feature: explanation},
+            orient='index').to_csv(
+            f'output/explanations/why_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
+            mode='a',
+            header=False)
 
         return explanation
 
@@ -196,6 +193,7 @@ class ExplanationGenerator():
         print(f'features ordered by importance {features_by_importance}')
 
         causal_chains = []
+        most_important_feature = 0
 
         for feature in features_by_importance:  
             # Get all causal chains with this feature as head - we want to use
@@ -206,6 +204,7 @@ class ExplanationGenerator():
             print(f'feature {feature} : {feature_causal_chains}')
             
             if len(feature_causal_chains) > 0:
+                most_important_feature = feature
                 feature_causal_chains.sort()
                 # removes duplicates
                 causal_chains = list(chain for chain, _ in itertools.groupby(feature_causal_chains))
@@ -222,22 +221,26 @@ class ExplanationGenerator():
         # the next node in the causal chain
 
         for idx, imm_node in enumerate(imm_nodes):
-            curr_node_value = datapoint[imm_node -
-                                        (self.scm.env.state_space + 1)]
+            curr_node_value = state[imm_node - (self.scm.env.state_space + 1)]
             predicted_node_value = predicted_nodes[imm_node][0]
             predicted_counter_node_value = predicted_counter_nodes[imm_node][0]
             diff = predicted_node_value - curr_node_value
-            # TODO: can the diff be 0
-            direction = 'increase' if diff > 0 else 'decrease'
+
+            if diff > 0.00001:
+                direction = 'increase'
+            elif diff < 0.00001:
+                direction = 'decrease'
+            else:
+                direction = 'maintain'
 
             if idx == 0:
-                explanation += f'In order to {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
+                explanation += f'In order to {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.5f} to {predicted_node_value:3.5f}) (counterfactual {predicted_counter_node_value:3.5f}) '
                 # TODO: add the rather than case?
             else:
-                explanation += f'and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.3f} to {predicted_node_value:3.3f}) (counterfactual {predicted_counter_node_value:3.3f}) '
+                explanation += f'\n and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.5f} to {predicted_node_value:3.5f}) (counterfactual {predicted_counter_node_value:3.5f}) '
                 # TODO: add the rather than case?
 
-        explanation += 'in the next time step.\n Because: \n'
+        explanation += f'in the next time step from the current state \n{self._convert_state_to_text(state)}.\n Because: '
 
         for causal_chain in causal_chains:
             print(f'causal chain {causal_chain}')
@@ -254,18 +257,20 @@ class ExplanationGenerator():
                         explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
                         break
                     if j == 1 and i == 0:
-                        explanation += (f'{self.env.features[node]} influences '.capitalize())
+                        explanation += (f'\n {self.env.features[node]} influences '.capitalize())
                     else:
                         explanation += f'{self.env.features[node]}, which influences '
 
-        return explanation
 
-        # pd.DataFrame.from_dict(
-        #     data=set(explanation),
-        #     orient='index').to_csv(
-        #     f'why_not_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
-        #     mode='a',
-        #     header=False)
+        pd.DataFrame.from_dict(
+                data={most_important_feature: explanation},
+                orient='index').to_csv(
+                f'output/explanations/why_not_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
+                mode='a',
+                header=False)
+        
+        return explanation
+    
 
     def _get_sink_nodes(self, causal_graph):
         return list(
@@ -358,6 +363,7 @@ class ExplanationGenerator():
         return subchains
 
     def _estimate_q_function_feature_importance(self, state, pertubation):
+        # TODO: we should have a min pertubation in case the state feature = 0.0
         min_pertubation = 0.001
         # TODO: should the pertubation be relative to the state feature bounds as well?? So that we change each feature by the same percentage
         # Without accounting for the state values, pertubation almost always causes the pole angular velocity to be the most importat state variable
@@ -378,8 +384,7 @@ class ExplanationGenerator():
         for i in range(len(state)):
             pertubated_state = state
             # Applying a 1% pertubation
-            pertubated_state_value = max(min_pertubation, pertubated_state[i] * (1.0 + pertubation))
-            pertubated_state[i] = pertubated_state_value
+            pertubated_state[i] *= 1.0 + pertubation
             print(f'pertubated state {pertubated_state}')
             updated_q_values = self.rl_agent.get_q_values(pertubated_state)
             print(f'updated q values {updated_q_values}')
@@ -412,3 +417,19 @@ class ExplanationGenerator():
 
         # Picks a state variable arbitrarily that affects the chosen action
         return np.where(importance_vector == 1)
+    
+
+    def _convert_state_to_text(self, state):
+        text = '('
+
+        for idx, feature in enumerate(state):
+            text += f'{self.env.features[idx]}: {feature:3.5f}'
+
+            if idx < len(state) - 1:
+                text += ', '
+
+        text += ')'
+
+        return text
+        
+
