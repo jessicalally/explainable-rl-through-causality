@@ -174,10 +174,9 @@ class DDQN(RLAgent):
         self.q_func_target.eval()
 
     def train(self, episodes=2000):
-        causal_discovery_dataset = []
-        action_influence_dataset = []
-
         print('Performing DDQN algorithm...')
+        reward_test_data = []
+        transition_test_data = []
 
         LEARN_EVERY = 4
         scores = []
@@ -196,16 +195,24 @@ class DDQN(RLAgent):
                     action)
                 self._save(state, action, reward, next_state, terminated)
 
-                causal_discovery_dataset.append(np.concatenate(
-                    (state, np.array(action), next_state), axis=None))
-
-                action_influence_dataset.append(
-                    (state, action, reward, next_state))
-
                 state = next_state
 
                 if steps > 0 and steps % LEARN_EVERY == 0:
                     self._learn()
+
+                if terminated:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(0)), axis=None)
+                    )
+                else:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(reward)), axis=None)
+                        )
+
+                    transition_test_data.append(
+                        np.concatenate(
+                            (state, np.array(action), next_state),
+                            axis=None))
 
                 steps += 1
                 score += reward
@@ -221,72 +228,88 @@ class DDQN(RLAgent):
 
         print('Finished DDQN Algorithm...')
 
-        return np.array(action_influence_dataset), np.array(
-            causal_discovery_dataset)
+        return np.array(transition_test_data), np.array(reward_test_data)
 
-    def generate_test_data_for_causal_discovery(self, num_datapoints):
-        test_data = []
+
+    def generate_test_data_for_causal_discovery(self, num_datapoints, use_sum_rewards=False):
+        transition_test_data = []
+        reward_test_data = []
 
         print('Generating test data for DDQN algorithm...')
 
-        while len(test_data) < num_datapoints:
+        while len(transition_test_data) < num_datapoints:
             terminated = False
             truncated = False
             state, _ = self.env.reset()
-            prev_reward = 0
 
             while not (terminated or truncated):
-                action = self._choose_action_deterministic(state)
+                action = self._choose_action(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
 
-                test_data.append(
+                if use_sum_rewards and terminated:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(0)), axis=None)
+                    )
+                else:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(reward)), axis=None)
+                    )
+
+                transition_test_data.append(
                     np.concatenate(
-                        (state,
-                         np.array(action),
-                            np.array(prev_reward),
-                            next_state),
+                        (state, np.array(action), next_state),
                         axis=None))
+            
 
                 state = next_state
-                prev_reward = reward
 
-            print("num datapoints collected so far: {}".format(len(test_data)))
+            print("num datapoints collected so far: {}".format(len(transition_test_data)))
 
         print('Finished generating test data for DDQN Algorithm...')
 
-        return np.array(test_data)
+        return np.array(transition_test_data), np.array(reward_test_data)
 
+    # TODO: adjust rewards in same way as above
     def generate_test_data_for_scm(self, num_datapoints):
-        test_data = []
+        transition_scm_test_data = []
+        reward_scm_test_data = []
 
         print('Generating test data for DDQN algorithm...')
 
-        while len(test_data) < num_datapoints:
+        while len(transition_scm_test_data) < num_datapoints:
             terminated = False
             truncated = False
             state, _ = self.env.reset()
+
+            episode_rewards = 0
 
             while not (terminated or truncated):
                 action = self._choose_action_deterministic(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
 
-                test_data.append(
+                if terminated:
+                    episode_rewards = 0
+                else:
+                    episode_rewards += reward
+
+                transition_scm_test_data.append(
                     np.concatenate(
-                        (state,
-                         np.array(action),
-                            next_state,
-                            np.array(reward)),
+                        (state, np.array(action), next_state),
                         axis=None))
+                
+                reward_scm_test_data.append(
+                    np.concatenate((next_state, np.array(episode_rewards)), axis=None)
+                )
 
                 state = next_state
 
-            print("num datapoints collected so far: {}".format(len(test_data)))
+            print("num datapoints collected so far: {}".format(len(transition_scm_test_data)))
 
         print('Finished generating test data for DDQN Algorithm...')
 
-        return np.array(test_data)
+        return np.array(transition_scm_test_data), np.array(reward_scm_test_data)
 
     # Methods needed for estimating feature importance
 
