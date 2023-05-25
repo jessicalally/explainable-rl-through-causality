@@ -201,10 +201,8 @@ class DDQN(RLAgent):
                     self._learn()
 
                 if terminated:
-                    reward = 0
-
                     reward_test_data.append(
-                        np.concatenate((next_state, np.array(reward)), axis=None)
+                        np.concatenate((next_state, np.array(0)), axis=None)
                     )
                 else:
                     reward_test_data.append(
@@ -243,20 +241,15 @@ class DDQN(RLAgent):
             terminated = False
             truncated = False
             state, _ = self.env.reset()
-            episode_rewards = 0
 
             while not (terminated or truncated):
                 action = self._choose_action(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
 
-                # TODO: do we want this for just cartpole or for lunar lander as well???
-                if use_sum_rewards:
-                    if terminated:
-                        reward = 0
-
+                if use_sum_rewards and terminated:
                     reward_test_data.append(
-                        np.concatenate((next_state, np.array(reward)), axis=None)
+                        np.concatenate((next_state, np.array(0)), axis=None)
                     )
                 else:
                     reward_test_data.append(
