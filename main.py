@@ -13,6 +13,7 @@ from rl_algorithms.SARSA import SARSA
 from rl_algorithms.policy_gradient import PolicyGradient
 from rl_algorithms.DQN import DQN
 from rl_algorithms.DDQN import DDQN
+from rl_algorithms.A2C import A2C
 from structural_causal_model import StructuralCausalModel
 
 def parse_args():
@@ -43,6 +44,8 @@ def get_environment(args):
         return MountainCar()
     elif args.env == "taxi":
         return Taxi()
+    elif args.env == "starcraft":
+        return Starcraft()
     else:
         raise ValueError(f"{args.env} environment is not implemented")
 
@@ -67,6 +70,8 @@ def get_rl_algorithm(args, env):
         return DDQN(env)
     elif args.rl == "sarsa":
         return SARSA(env)
+    elif args.rl == "a2c":
+        return A2C(env)
     else:
         raise ValueError(f"{args.rl} algorithm is not implemented")
     
@@ -106,7 +111,11 @@ def main(args):
     os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
     # Train agent from scratch or load
-    # causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
+    # rl_agent.train()
+
+    # with open(rl_agent_path,'rb') as agent_file:
+    #     rl_agent = pickle.load(agent_file)
+
    
     # # Generate datasets ##
     # if len(causal_discovery_dataset) < 500000:
@@ -166,6 +175,7 @@ def main(args):
     print("VARLINGAM")
     learned_reward_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(reward_causal_discovery_dataset, env, forbidden_edges, required_edges, env.reward_true_dag)
     print(causal_matrix_with_assumptions)
+
     method = PC()
 
     print(f'forbidden {forbidden_edges}')
@@ -186,13 +196,13 @@ def main(args):
         causal_matrix_with_assumptions, create_using=nx.MultiDiGraph())
 
 
-    # metrics_path = f"output/metrics/{env.name}_{rl_agent.name}.pickle"
-    # os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
+    metrics_path = f"output/metrics/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(metrics_path), exist_ok=True)
 
-    # causal_graph_path = f"output/causal_graph/{env.name}_{rl_agent.name}.pickle"
-    # os.makedirs(os.path.dirname(causal_graph_path), exist_ok=True)
+    causal_graph_path = f"output/causal_graph/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(causal_graph_path), exist_ok=True)
 
-    # print(met)
+    print(met)
 
     # with open(metrics_path, 'wb') as metrics_file:
     #     pickle.dump(met, metrics_file)
@@ -231,8 +241,6 @@ def main(args):
 
 #     # with open(reward_scm_dataset_path, 'rb') as dataset_file:
 #     #     reward_scm_dataset = pickle.load(dataset_file)
-
-    # TODO: can we use the same dataset or should we generate a second dataset?
 
     num_datapoints = 500000
 
