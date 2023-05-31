@@ -175,6 +175,8 @@ class DDQN(RLAgent):
 
     def train(self, episodes=2000):
         print('Performing DDQN algorithm...')
+        reward_test_data = []
+        transition_test_data = []
 
         LEARN_EVERY = 4
         scores = []
@@ -198,6 +200,20 @@ class DDQN(RLAgent):
                 if steps > 0 and steps % LEARN_EVERY == 0:
                     self._learn()
 
+                if terminated:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(0)), axis=None)
+                    )
+                else:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(reward)), axis=None)
+                        )
+
+                    transition_test_data.append(
+                        np.concatenate(
+                            (state, np.array(action), next_state),
+                            axis=None))
+
                 steps += 1
                 score += reward
 
@@ -212,6 +228,8 @@ class DDQN(RLAgent):
 
         print('Finished DDQN Algorithm...')
 
+        return np.array(transition_test_data), np.array(reward_test_data)
+
 
     def generate_test_data_for_causal_discovery(self, num_datapoints, use_sum_rewards=False):
         transition_test_data = []
@@ -223,22 +241,15 @@ class DDQN(RLAgent):
             terminated = False
             truncated = False
             state, _ = self.env.reset()
-            episode_rewards = 0
 
             while not (terminated or truncated):
                 action = self._choose_action(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
 
-                # TODO: do we want this for just cartpole or for lunar lander as well???
-                if use_sum_rewards:
-                    if terminated:
-                        episode_rewards = 0
-                    else:
-                        episode_rewards += reward
-
+                if use_sum_rewards and terminated:
                     reward_test_data.append(
-                        np.concatenate((next_state, np.array(episode_rewards)), axis=None)
+                        np.concatenate((next_state, np.array(0)), axis=None)
                     )
                 else:
                     reward_test_data.append(
@@ -298,7 +309,7 @@ class DDQN(RLAgent):
 
         print('Finished generating test data for DDQN Algorithm...')
 
-        return np.array(transition_scm_test_data)
+        return np.array(transition_scm_test_data), np.array(reward_scm_test_data)
 
     # Methods needed for estimating feature importance
 
