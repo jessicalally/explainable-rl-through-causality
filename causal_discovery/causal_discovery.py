@@ -54,7 +54,6 @@ def get_data(path, num_datapoints=30000):
 
     return data
 
-
 def display_graphs(causal_matrix, true_dag, args, with_assumptions):
     save_path = f'{args.save_path}/graphs/{args.env}_{args.method}_assumptions_{with_assumptions}'
     GraphDAG(causal_matrix, true_dag, show=True, save_name=save_path)

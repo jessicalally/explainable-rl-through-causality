@@ -64,7 +64,18 @@ class Method(object):
 
 
 class PC(Method):
-    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
+    def generate_causal_matrix(
+        self,
+        data,
+        env,
+        forbidden_edges,
+        required_edges,
+        threshold=0.3,
+        with_assumptions=True,
+        plot_dag=False,
+        print_dag_probabilities=False,
+        restructure=False):
+        
         priori = PrioriKnowledge(data.shape[1])
 
         # PC does not require post-processing, as the prior information can be
@@ -86,7 +97,17 @@ class PC(Method):
 
 
 class RL(Method):
-    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
+    def generate_causal_matrix(
+        self,
+        data,
+        env,
+        forbidden_edges,
+        required_edges,
+        threshold=0.3,
+        with_assumptions=True,
+        plot_dag=False,
+        print_dag_probabilities=False,
+        restructure=False):
         rl = castle.algorithms.RL(
             nb_epoch=1500,
             input_dimension=32,
@@ -106,9 +127,17 @@ class RL(Method):
 
 
 class NOTEARS(Method):
-    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
-        threshold = 0.5
-
+    def generate_causal_matrix(
+            self,
+            data,
+            env,
+            forbidden_edges,
+            required_edges,
+            threshold=0.5,
+            with_assumptions=True,
+            plot_dag=False,
+            print_dag_probabilities=False,
+            restructure=False):
         nt = from_numpy(
             data,
             max_iter=100,
@@ -212,7 +241,17 @@ class VarLiNGAM(Method):
         return causal_matrix
 
 class DirectLiNGAM(Method):
-    def generate_causal_matrix(self, data, env, forbidden_edges, required_edges, with_assumptions=True):
+    def generate_causal_matrix(
+            self,
+            data,
+            env,
+            forbidden_edges,
+            required_edges,
+            threshold=0.3,
+            with_assumptions=True,
+            plot_dag=False,
+            print_dag_probabilities=False,
+            restructure=False):
         threshold = 0.01
         model = lingam.DirectLiNGAM()
         model.fit(data)
