@@ -75,7 +75,7 @@ class PC(Method):
         plot_dag=False,
         print_dag_probabilities=False,
         restructure=False):
-        
+
         priori = PrioriKnowledge(data.shape[1])
 
         # PC does not require post-processing, as the prior information can be
@@ -108,12 +108,17 @@ class RL(Method):
         plot_dag=False,
         print_dag_probabilities=False,
         restructure=False):
+
+        # rl = castle.algorithms.RL(
+        #     nb_epoch=1500,
+        #     input_dimension=32,
+        #     hidden_dim=32,
+        #     num_heads=8,
+        #     num_stacks=4
+        # )
+
         rl = castle.algorithms.RL(
-            nb_epoch=1500,
-            input_dimension=32,
-            hidden_dim=32,
-            num_heads=8,
-            num_stacks=4
+            nb_epoch=2000
         )
 
         rl.learn(data)
