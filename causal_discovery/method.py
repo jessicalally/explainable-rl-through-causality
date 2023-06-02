@@ -121,7 +121,7 @@ class RL(Method):
             nb_epoch=2000
         )
 
-        rl.learn(data)
+        rl.learn(data.astype('float64'))
         causal_matrix = rl.causal_matrix
 
         if with_assumptions:
