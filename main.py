@@ -15,6 +15,7 @@ from rl_algorithms.DQN import DQN
 from rl_algorithms.DDQN import DDQN
 from rl_algorithms.A2C import A2C
 from structural_causal_model import StructuralCausalModel
+import time
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Generate Explanations')
@@ -67,7 +68,7 @@ def get_rl_algorithm(args, env):
                 lr=0.01,
                 reward_threshold=495
             )
-        return DDQN(env)
+        return DDQN(env, reward_threshold=200)
     elif args.rl == "sarsa":
         return SARSA(env)
     elif args.rl == "a2c":
@@ -95,85 +96,113 @@ def causal_discovery(dataset, method, env, forbidden_edges, required_edges, true
 
     return learned_causal_graph, met.metrics, causal_matrix_with_assumptions
 
+def get_known_edges(env, causal_matrix):
+    forbidden_edges = [(i, j) for i, j in itertools.product(range(env.state_space), range(env.state_space))]
+    required_edges = []
+
+    for i,j in itertools.product(range(env.state_space), range(env.state_space)):
+        if causal_matrix[i][j] == 1:
+            forbidden_edges.remove((i, j))
+            required_edges.append((i, j))
+
+    for i in range(env.state_space):
+        forbidden_edges.append((env.state_space, i))
+
+    return forbidden_edges, required_edges
+
+def run_causal_discovery_method(env, method, method_name, causal_discovery_dataset, reward_causal_discovery_dataset):
+    print(method_name)
+    print("feature causal discovery")
+    st = time.process_time()
+    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset, method, env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
+    et = time.process_time()
+    print(causal_matrix_with_assumptions)
+    print(met)
+    print(f"elapsed time {et - st}")
+
+    print("reward causal discovery")
+    forbidden_edges, required_edges = get_known_edges(env, causal_matrix_with_assumptions)
+    st = time.process_time()
+    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(reward_causal_discovery_dataset, method, env, forbidden_edges, required_edges, env.reward_true_dag, restructure=True)
+    et = time.process_time()
+    print(causal_matrix_with_assumptions)
+    print(met)
+    print(f"elapsed time {et - st}")
+
+
+def run_all_causal_discovery_methods(env, causal_discovery_dataset, reward_causal_discovery_dataset):
+    # PC
+    run_causal_discovery_method(env, PC(), "PC", causal_discovery_dataset, reward_causal_discovery_dataset)
+
+    # VarLiNGAM
+    run_causal_discovery_method(env, VarLiNGAM(), "VarLiNGAM", causal_discovery_dataset[:, :-env.state_space], reward_causal_discovery_dataset)
+
+    # Direct LiNGAM
+    run_causal_discovery_method(env, DirectLiNGAM(), "DirectLiNGAM", causal_discovery_dataset, reward_causal_discovery_dataset)
+
+    # NOTEARS
+    run_causal_discovery_method(env, NOTEARS(), "NOTEARS", causal_discovery_dataset, reward_causal_discovery_dataset)
+
+    # RL
+    run_causal_discovery_method(env, RL(), "RL", causal_discovery_dataset, reward_causal_discovery_dataset)
+
 
 def main(args):
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
-    rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+    rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}3.pickle"
     os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
     # Train agent from scratch or load
-    # causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
+    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
 
     # with open(rl_agent_path,'rb') as agent_file:
     #     rl_agent = pickle.load(agent_file)
    
-    # Generate datasets ##
-    # if len(causal_discovery_dataset) < 500000:
-    #     num_datapoints = 500000 - len(causal_discovery_dataset)
-    #     causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
-    #     print(causal_discovery_dataset.shape)
-    #     print(reward_causal_discovery_dataset.shape)
-    #     print(causal_discovery_dataset_extended.shape)
-    #     print(reward_causal_discovery_dataset_extended.shape)
-    #     causal_discovery_dataset = np.append(causal_discovery_dataset, causal_discovery_dataset_extended, axis=0)
-    #     reward_causal_discovery_dataset = np.append(reward_causal_discovery_dataset, reward_causal_discovery_dataset_extended, axis=0)
+    ## Generate datasets ##
+    if len(causal_discovery_dataset) < 500000:
+        num_datapoints = 500000 - len(causal_discovery_dataset)
+        causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+        print(causal_discovery_dataset.shape)
+        print(reward_causal_discovery_dataset.shape)
+        print(causal_discovery_dataset_extended.shape)
+        print(reward_causal_discovery_dataset_extended.shape)
+        causal_discovery_dataset = np.append(causal_discovery_dataset, causal_discovery_dataset_extended, axis=0)
+        reward_causal_discovery_dataset = np.append(reward_causal_discovery_dataset, reward_causal_discovery_dataset_extended, axis=0)
 
-    # causal_discovery_dataset = causal_discovery_dataset[:500000]
-    # reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000]
+    causal_discovery_dataset = causal_discovery_dataset[:500000]
+    reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000]
 
-    # print(causal_discovery_dataset.shape)
-    # print(reward_causal_discovery_dataset.shape)
+    print(causal_discovery_dataset.shape)
+    print(reward_causal_discovery_dataset.shape)
 
-    dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+    dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}3.pickle"
     os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
-    reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+    reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}3.pickle"
     os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
 
-    # with open(rl_agent_path, 'wb') as agent_file:
-    #     pickle.dump(rl_agent, agent_file)
+    with open(rl_agent_path, 'wb') as agent_file:
+        pickle.dump(rl_agent, agent_file)
 
-    # with open(dataset_path, 'wb') as dataset_file:
-    #     pickle.dump(causal_discovery_dataset, dataset_file)
+    with open(dataset_path, 'wb') as dataset_file:
+        pickle.dump(causal_discovery_dataset, dataset_file)
 
-    # with open(reward_dataset_path, 'wb') as dataset_file:
-    #     pickle.dump(reward_causal_discovery_dataset, dataset_file)
+    with open(reward_dataset_path, 'wb') as dataset_file:
+        pickle.dump(reward_causal_discovery_dataset, dataset_file)
 
-    with open(rl_agent_path, 'rb') as rl_agent_file:
-        rl_agent = pickle.load(rl_agent_file)
+    run_all_causal_discovery_methods()
 
-    with open(dataset_path, 'rb') as dataset_file:
-        causal_discovery_dataset = pickle.load(dataset_file)
+    # with open(rl_agent_path, 'rb') as rl_agent_file:
+    #     rl_agent = pickle.load(rl_agent_file)
 
-    with open(reward_dataset_path, 'rb') as dataset_file:
-        reward_causal_discovery_dataset = pickle.load(dataset_file)
+    # with open(dataset_path, 'rb') as dataset_file:
+    #     causal_discovery_dataset = pickle.load(dataset_file)
+
+    # with open(reward_dataset_path, 'rb') as dataset_file:
+    #     reward_causal_discovery_dataset = pickle.load(dataset_file)
 
     ## Learn causal graph ##
-    # PC
-    print("PC")
-    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset, PC(), env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
-    print(causal_matrix_with_assumptions)
-    print(met)
-
-    # VarLiNGAM
-    print("VarLiNGAM")
-    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset[:, :-env.state_space], VarLiNGAM(), env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
-    print(causal_matrix_with_assumptions)
-    print(met)
-
-    # Direct LiNGAM
-    print("Direct LiNGAM")
-    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset, DirectLiNGAM(), env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
-    print(causal_matrix_with_assumptions)
-    print(met)
-
-    # NOTEARS
-    # print("NOTEARS")
-    # learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset, NOTEARS(), env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
-    # print(causal_matrix_with_assumptions)
-    # print(met)
-
 
 #     forbidden_edges = [(i, j) for i, j in itertools.product(range(env.state_space), range(env.state_space))]
 #     required_edges = []
