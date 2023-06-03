@@ -173,7 +173,7 @@ class DDQN(RLAgent):
         self.q_func_target.load_state_dict(torch.load(path + '.target'))
         self.q_func_target.eval()
 
-    def train(self, episodes=2000):
+    def train(self, episodes=4000):
         print('Performing DDQN algorithm...')
         reward_test_data = []
         transition_test_data = []
@@ -220,7 +220,7 @@ class DDQN(RLAgent):
             eps_history.append(self.epsilon)
             scores.append(score)
 
-            avg_score = np.mean(scores[max(0, e - 100):(e + 1)])
+            avg_score = np.mean(scores[max(0, e - 10):(e + 1)])
             print("episode: {}/{}, score: {}".format(e, episodes, avg_score))
 
             if avg_score > self.reward_threshold:
