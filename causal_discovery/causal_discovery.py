@@ -6,6 +6,7 @@ from environment import Environment
 from method import Method
 import numpy as np
 import os
+import dill as pickle
 
 
 def parse_args():
@@ -76,28 +77,48 @@ def save_metrics(metrics, args, with_assumptions):
 
 def main(args):
     # Rows of state + action + next state
-    data = get_data(args.path_to_dataset, num_datapoints=args.num_points)
+    # data = get_data(args.path_to_dataset, num_datapoints=args.num_points)
+
     env = Environment.get_env(args.env)
     method = Method.get_method(args.method)
 
-    causal_matrix_no_assumptions = method.generate_causal_matrix(
-        data,
-        env,
-        with_assumptions=False
-    )
+    dataset_path = f"../output/causal_discovery_dataset/{env.name}_ddqn.pickle"
+    reward_dataset_path = f"../output/reward_discovery_dataset/{env.name}_ddqn.pickle"
+
+    with open(dataset_path, 'rb') as dataset_file:
+        causal_discovery_dataset = pickle.load(dataset_file)
+
+    with open(reward_dataset_path, 'rb') as dataset_file:
+        reward_causal_discovery_dataset = pickle.load(dataset_file)
+
+    # causal_matrix_no_assumptions = method.generate_causal_matrix(
+    #     data,
+    #     env,
+    #     with_assumptions=False
+    # )
 
     causal_matrix_with_assumptions = method.generate_causal_matrix(
-        data,
+        causal_discovery_dataset,
         env,
+        env.forbidden_edges,
+        env.required_edges,
         with_assumptions=True
     )
 
-    display_graphs(
-        causal_matrix_no_assumptions,
-        env.true_dag,
-        args,
-        False
+    reward_causal_matrix_with_assumptions = method.generate_causal_matrix(
+        reward_causal_discovery_dataset,
+        env,
+        env.forbidden_edges_reward,
+        [],
+        with_assumptions=True
     )
+
+    # display_graphs(
+    #     causal_matrix_no_assumptions,
+    #     env.true_dag,
+    #     args,
+    #     False
+    # )
 
     display_graphs(
         causal_matrix_with_assumptions,
@@ -106,12 +127,21 @@ def main(args):
         True
     )
 
-    evaluate(causal_matrix_no_assumptions, env.true_dag, args, False)
-    evaluate(causal_matrix_with_assumptions, env.true_dag, args, True)
+    display_graphs(
+        reward_causal_matrix_with_assumptions,
+        env.reward_true_dag,
+        args,
+        True
+    )
 
-    save_path = f'{args.save_path}/causal_matrices/{args.env}_{args.method}_assumptions_'
-    np.save(save_path + 'False', causal_matrix_no_assumptions)
-    np.save(save_path + 'True', causal_matrix_with_assumptions)
+
+    # evaluate(causal_matrix_no_assumptions, env.true_dag, args, False)
+    evaluate(causal_matrix_with_assumptions, env.true_dag, args, True)
+    evaluate(reward_causal_matrix_with_assumptions, env.reward_true_dag, args, True)
+
+    # save_path = f'{args.save_path}/causal_matrices/{args.env}_{args.method}_assumptions_'
+    # # np.save(save_path + 'False', causal_matrix_no_assumptions)
+    # np.save(save_path + 'True', causal_matrix_with_assumptions)
 
 
 if __name__ == '__main__':
