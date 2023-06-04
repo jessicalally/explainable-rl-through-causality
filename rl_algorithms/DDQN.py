@@ -220,8 +220,8 @@ class DDQN(RLAgent):
             eps_history.append(self.epsilon)
             scores.append(score)
 
-            avg_score = np.mean(scores[max(0, e - 10):(e + 1)])
-            print("episode: {}/{}, score: {}".format(e, episodes, avg_score))
+            avg_score = np.mean(scores[max(0, e - 100):(e + 1)])
+            print("episode: {}/{}, score: {}, avg score: {}".format(e, episodes, score, avg_score))
 
             if avg_score > self.reward_threshold:
                 break

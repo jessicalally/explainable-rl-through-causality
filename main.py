@@ -66,7 +66,7 @@ def get_rl_algorithm(args, env):
                 epsilon_decay=0.99,
                 batch_size=512,
                 lr=0.01,
-                reward_threshold=495
+                reward_threshold=475
             )
         return DDQN(env, reward_threshold=200)
     elif args.rl == "sarsa":
