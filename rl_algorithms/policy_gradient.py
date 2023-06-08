@@ -99,10 +99,10 @@ class PolicyGradient(RLAgent):
             episodes=2000,
             gamma=0.95,
             lr=0.01,
-            reward_threshold=495,
+            reward_threshold=475,
             timestep=10):
-        action_influence_data_set = []
-        causal_discovery_data_set = []
+        reward_test_data = []
+        transition_test_data = []
         train_rewards = []
         test_rewards = []
 
@@ -115,12 +115,13 @@ class PolicyGradient(RLAgent):
             states = []
             actions = []
             rewards = []
-            done = False
+            terminated = False
+            truncated = False
 
             state, _ = self.env.reset()
             prev_reward = 0
 
-            while not done:
+            while not (terminated or truncated):
                 steps += 1
 
                 action_prediction = self.policy(torch.DoubleTensor(state))
@@ -131,17 +132,26 @@ class PolicyGradient(RLAgent):
                 log_prob_action = dist.log_prob(chosen_action)
                 log_prob_actions.append(log_prob_action)
 
-                next_state, reward, done, _, _ = self.env.step(
+                next_state, reward, terminated, truncated, _ = self.env.step(
                     chosen_action.item())
                 episode_reward += reward
 
                 rewards.append(reward)
 
-                datapoint = np.concatenate(
-                    (state, np.array(chosen_action), np.array(prev_reward), next_state), axis=None)
-                causal_discovery_data_set.append(datapoint)
-                action_influence_data_set.append(
-                    (state, chosen_action, reward, next_state))
+                if terminated:
+                    # Hack for solving Cartpole
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(0)), axis=None)
+                    )
+                else:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(reward)), axis=None)
+                        )
+
+                transition_test_data.append(
+                    np.concatenate(
+                        (state, np.array(chosen_action), next_state),
+                        axis=None))
 
                 state = next_state
                 prev_reward = reward
@@ -156,8 +166,8 @@ class PolicyGradient(RLAgent):
             train_rewards.append(episode_reward)
             test_rewards.append(test_reward)
 
-            mean_train_rewards = np.mean(train_rewards[-5:])
-            mean_test_rewards = np.mean(test_rewards[-5:])
+            mean_train_rewards = np.mean(train_rewards[-100:])
+            mean_test_rewards = np.mean(test_rewards[-100:])
 
             if episode % timestep == 0:
                 print(
@@ -167,35 +177,36 @@ class PolicyGradient(RLAgent):
                 print(f'Reached reward threshold in {episode} episodes')
                 break
 
-        print('Finished Policy Gradient...')
+        print('Finished Policy Gradient Algorithm...')
 
-        return np.array(action_influence_data_set), np.array(
-            causal_discovery_data_set)
+        return np.array(transition_test_data), np.array(reward_test_data)
 
     def generate_test_data_for_causal_discovery(
             self,
-            num_datapoints=1000,
+            num_datapoints, use_sum_rewards=False,
             episodes=2000,
             gamma=0.99,
             lr=0.01,
-            reward_threshold=800,
+            reward_threshold=475,
             timestep=10):
-        causal_discovery_data_set = []
+        transition_test_data = []
+        reward_test_data = []
         train_rewards = []
         test_rewards = []
         episode = 0
 
-        while len(causal_discovery_data_set) < num_datapoints:
+        while len(transition_test_data) < num_datapoints:
             steps = 0
             episode_reward = 0
             log_prob_actions = []
             rewards = []
-            done = False
+            terminated = False
+            truncated = False
 
             state, _ = self.env.reset()
             prev_reward = 0
 
-            while not done and len(causal_discovery_data_set) < num_datapoints:
+            while not (terminated or truncated):
                 steps += 1
 
                 action_prediction = self.policy(torch.DoubleTensor(state))
@@ -206,15 +217,25 @@ class PolicyGradient(RLAgent):
                 log_prob_action = dist.log_prob(chosen_action)
                 log_prob_actions.append(log_prob_action)
 
-                next_state, reward, done, _, _ = self.env.step(
+                next_state, reward, terminated, truncated, _ = self.env.step(
                     chosen_action.item())
                 episode_reward += reward
 
                 rewards.append(reward)
 
-                datapoint = np.concatenate(
-                    (state, np.array(chosen_action), np.array(prev_reward), next_state), axis=None)
-                causal_discovery_data_set.append(datapoint)
+                if use_sum_rewards and terminated:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(0)), axis=None)
+                    )
+                else:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(reward)), axis=None)
+                    )
+
+                transition_test_data.append(
+                    np.concatenate(
+                        (state, np.array(chosen_action), next_state),
+                        axis=None))
 
                 state = next_state
                 prev_reward = reward
@@ -224,8 +245,8 @@ class PolicyGradient(RLAgent):
             train_rewards.append(episode_reward)
             test_rewards.append(test_reward)
 
-            mean_train_rewards = np.mean(train_rewards[-5:])
-            mean_test_rewards = np.mean(test_rewards[-5:])
+            mean_train_rewards = np.mean(train_rewards[-100:])
+            mean_test_rewards = np.mean(test_rewards[-100:])
 
             if episode % timestep == 0:
                 print(
@@ -233,11 +254,11 @@ class PolicyGradient(RLAgent):
 
             episode += 1
             print(
-                f'Num datapoints collected so far: {len(causal_discovery_data_set)}')
+                f'Num datapoints collected so far: {len(transition_test_data)}')
 
         print('Finished Policy Gradient...')
 
-        return np.array(causal_discovery_data_set)
+        return np.array(transition_test_data), np.array(reward_test_data)
 
     def generate_test_data_for_scm(
             self,

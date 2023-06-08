@@ -209,10 +209,10 @@ class DDQN(RLAgent):
                         np.concatenate((next_state, np.array(reward)), axis=None)
                         )
 
-                    transition_test_data.append(
-                        np.concatenate(
-                            (state, np.array(action), next_state),
-                            axis=None))
+                transition_test_data.append(
+                    np.concatenate(
+                        (state, np.array(action), next_state),
+                        axis=None))
 
                 steps += 1
                 score += reward
