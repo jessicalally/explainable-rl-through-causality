@@ -3,15 +3,13 @@ import tensorflow.compat.v1 as tf
 import networkx as nx
 import numpy as np
 import pandas as pd
-# import logging
 
 # SCM with actions represented explicitly as a separate state variable
-
-
 class StructuralCausalModel:
-    def __init__(self, env, data_set, learned_causal_graph=None, for_reward=False):
+    def __init__(self, env, rl_agent, data_set, learned_causal_graph=None, is_reward=False):
         self.env = env
-        self.for_reward = for_reward
+        self.rl_agent = rl_agent
+        self.is_reward = is_reward
 
         if learned_causal_graph is not None:
             self.causal_graph = learned_causal_graph
@@ -56,13 +54,13 @@ class StructuralCausalModel:
                     key=str(i)) for i in range(
                     len(x_data))]
 
-            if node == self.env.action_node and not self.for_reward:
+            if node == self.env.action_node and not self.is_reward:
                 y_data = data_set[:, node].astype(int)
 
                 classifier = tf.estimator.DNNClassifier(
                     n_classes=self.env.action_space,
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/test/' + str(self.env.name) + '/linear_classifier/' + str(node) + str(self.for_reward),
+                    model_dir='scm_models/' + f'{self.env.name}-{self.rl_agent.name}' + '/linear_classifier/' + str(node) + str(self.is_reward),
                     hidden_units=[64, 128, 64, 32],
                     dropout=0.2,
                 )
@@ -77,7 +75,7 @@ class StructuralCausalModel:
 
                 lr = tf.estimator.LinearRegressor(
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/test/' + str(self.env.name) + '/linear_regressor/' + str(node) + str(self.for_reward))
+                    model_dir='scm_models/' + f'{self.env.name}-{self.rl_agent.name}' + '/linear_regressor/' + str(node) + str(self.is_reward))
 
                 structural_equations[node] = {
                     'X': x_data, 'Y': y_data, 'function': lr, 'type': 'state'}
@@ -90,8 +88,6 @@ class StructuralCausalModel:
         print('Ending SCM training...')
 
     def _train_structural_equations(self):
-        # logging.getLogger().setLevel(logging.INFO)
-
         for node in self.structural_equations:
             self.structural_equations[node]['function'].train(
                 input_fn=self.get_input_fn(

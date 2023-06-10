@@ -125,7 +125,7 @@ def run_causal_discovery_method(env, method, method_name, causal_discovery_datas
     print(method_name)
     print("feature causal discovery")
     st = time.process_time()
-    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset, method, env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
+    learned_feature_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(causal_discovery_dataset, method, env, env.forbidden_edges, env.required_edges, env.true_dag, restructure=True)
     et = time.process_time()
     print(causal_matrix_with_assumptions)
     print(met)
@@ -134,11 +134,13 @@ def run_causal_discovery_method(env, method, method_name, causal_discovery_datas
     print("reward causal discovery")
     forbidden_edges, required_edges = get_known_edges(env, causal_matrix_with_assumptions)
     st = time.process_time()
-    learned_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(reward_causal_discovery_dataset, method, env, forbidden_edges, required_edges, env.reward_true_dag)
+    learned_reward_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(reward_causal_discovery_dataset, method, env, forbidden_edges, required_edges, env.reward_true_dag)
     et = time.process_time()
     print(causal_matrix_with_assumptions)
     print(met)
     print(f"elapsed time {et - st}")
+
+    return learned_feature_causal_graph, learned_reward_causal_graph
 
 
 def run_all_causal_discovery_methods(env, causal_discovery_dataset, reward_causal_discovery_dataset):
@@ -212,9 +214,104 @@ def run_iter(args, iter):
     run_all_causal_discovery_methods(env, causal_discovery_dataset, reward_causal_discovery_dataset)
 
 
+def run_scm_training(args):
+    env = get_environment(args)
+    rl_agent = get_rl_algorithm(args, env)
+
+    rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
+
+    dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
+    reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
+
+    with open(rl_agent_path, 'rb') as rl_agent_file:
+        rl_agent = pickle.load(rl_agent_file)
+
+    with open(dataset_path, 'rb') as dataset_file:
+        causal_discovery_dataset = pickle.load(dataset_file)
+
+    with open(reward_dataset_path, 'rb') as dataset_file:
+        reward_causal_discovery_dataset = pickle.load(dataset_file)
+
+    feature_causal_graph, reward_causal_graph = run_causal_discovery_method(env, VarLiNGAM(), "VarLiNGAM", causal_discovery_dataset, reward_causal_discovery_dataset)
+
+    ## Train structural causal model ##
+
+    # Reduce dataset and randomise to reduce overfitting
+    rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
+    feature_scm_training_data = causal_discovery_dataset[rnd_indices]
+
+    rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
+    reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
+
+    scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        feature_scm_training_data,
+        feature_causal_graph
+    )
+
+    st = time.process_time()
+    scm.train()
+    et = time.process_time()
+    print(f"feature scm elapsed time {et - st}")
+
+    reward_scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        reward_scm_training_data,
+        reward_causal_graph,
+        is_reward = True,
+    )
+
+    st = time.process_time()
+    reward_scm.train()
+    et = time.process_time()
+    print(f"reward scm elapsed time {et - st}")
+
+    scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_path), exist_ok=True)
+
+    reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
+
+    with open(scm_path, 'wb') as f:
+        pickle.dump(scm, f)
+
+    with open(reward_scm_path, 'wb') as f:
+        pickle.dump(reward_scm, f)
+
+    # with open(scm_path, 'rb') as f:
+    #     scm = pickle.load(f)
+
+    # with open(reward_scm_path, 'rb') as f:
+    #     reward_scm = pickle.load(f)
+
+    ## Evaluation ##
+
+    num_datapoints = 10000
+
+    test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+    print(test_data.shape)
+    rnd_indices = np.random.choice(len(test_data), 2500)
+    test_data = test_data[rnd_indices]
+
+    print(f'Data: {test_data.shape}')
+
+    accuracy = evaluation.task_prediction(test_data, scm)
+    print("Accuracy="+str(accuracy))
+
+    # with open(f"{env.name}_{rl_agent.name}_metrics.txt", 'w') as f:
+    #     f.write("MSE=" + str(mse))
+    #     f.write("MSE ignoring reward=" + str(mse_ignoring_reward))
+    #     f.write("Correct action predictions=" + str(action_predictions))
+
+
 def main(args):
-    for i in range(3):
-        run_iter(args, i)
+    run_scm_training(args)
+   
 
     ## Learn causal graph ##
 

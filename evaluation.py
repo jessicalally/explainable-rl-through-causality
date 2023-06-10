@@ -93,7 +93,5 @@ def evaluate_fidelity(scm, test_data, num_test_points=100, REWARD_DAG=False):
 
     return avg_mse, avg_correct_action_predictions
 
-# Performance: Measures the time taken to train the model
-
 # Faithfulness: Measures how faithful explanations are to the RL agent's
 # decision-making
