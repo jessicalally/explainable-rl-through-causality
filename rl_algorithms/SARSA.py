@@ -125,7 +125,7 @@ class SARSA(RLAgent):
         return np.array(test_data), np.array(reward_test_data)
 
     # Generates datapoints from the trained RL agent
-    def generate_test_data_for_causal_discovery(self, num_datapoints):
+    def generate_test_data_for_causal_discovery(self, num_datapoints, use_sum_rewards=True):
         test_data = []
         reward_discovery_test_data = []
 
