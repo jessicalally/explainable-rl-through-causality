@@ -393,12 +393,11 @@ class MountainCar(Environment):
     env = gym.make('MountainCar-v0')
 
     true_dag = np.array([
-        [0, 0, 1, 1, 1, 0],  # 0 = pos t
-        [0, 0, 1, 0, 1, 0],  # 1 = velocity t
-        [0, 0, 0, 0, 1, 0],  # 2 = action t
-        [0, 0, 0, 0, 0, 1],  # 3 = pos t + 1
-        [0, 0, 0, 1, 0, 0],  # 4 = velocity t + 1
-        [0, 0, 0, 0, 0, 0]   # 5 = reward
+        [0, 0, 1, 1, 1],  # 0 = pos t
+        [0, 0, 1, 0, 1],  # 1 = velocity t
+        [0, 0, 0, 0, 1],  # 2 = action t
+        [0, 0, 0, 0, 0],  # 3 = pos t + 1
+        [0, 0, 0, 1, 0],  # 4 = velocity t + 1
     ])
 
     reward_true_dag = np.array([
