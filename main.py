@@ -56,7 +56,9 @@ def get_rl_algorithm(args, env):
     if args.rl == "pg":
         return PolicyGradient(env)
     elif args.rl == "dqn":
-        return DQN(env)
+        agent = DQN(env.action_space, env.state_space)
+        agent.model.load_weights("output/trained_rl_agents/mountaincar_dqn_0.h5")
+        return agent
     elif args.rl == "ddqn":
         if args.env == "cartpole":
             return DDQN(
@@ -332,8 +334,9 @@ def main(args):
     # for iter in range(0, 3):
     #     run_iter(args, iter)
 
-    run_scm_training(args)
-   
+    # run_scm_training(args)
+    env = get_environment(args)
+    rl_agent = get_rl_algorithm(args, env)
 
     ## Learn causal graph ##
 
