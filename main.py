@@ -225,22 +225,27 @@ def run_scm_training(args):
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
-    rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
-    os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
+    if env.name != "mountaincar":
+        rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+        os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
+
+        with open(rl_agent_path, 'rb') as rl_agent_file:
+            rl_agent = pickle.load(rl_agent_file)
 
     dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
     os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
     reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
     os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
 
-    with open(rl_agent_path, 'rb') as rl_agent_file:
-        rl_agent = pickle.load(rl_agent_file)
-
     with open(dataset_path, 'rb') as dataset_file:
         causal_discovery_dataset = pickle.load(dataset_file)
 
     with open(reward_dataset_path, 'rb') as dataset_file:
         reward_causal_discovery_dataset = pickle.load(dataset_file)
+
+    if env.name == "mountaincar":
+        causal_discovery_dataset = np.array(causal_discovery_dataset)
+        reward_causal_discovery_dataset = np.array(reward_causal_discovery_dataset)
 
     feature_causal_graph, reward_causal_graph = run_causal_discovery_method(env, VarLiNGAM(), "VarLiNGAM", causal_discovery_dataset, reward_causal_discovery_dataset)
 
@@ -253,12 +258,61 @@ def run_scm_training(args):
     rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
     reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
 
+    # SCMs using true DAG
+    scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        feature_scm_training_data,
+        nx.from_numpy_matrix(env.true_dag, create_using=nx.MultiDiGraph()),
+        uses_true_dag=True
+    )
+
+    st = time.process_time()
+    scm.train()
+    et = time.process_time()
+    print(f"feature scm elapsed time {et - st}")
+
+    reward_scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        reward_scm_training_data,
+        nx.from_numpy_matrix(env.reward_true_dag, create_using=nx.MultiDiGraph()),
+        is_reward = True,
+        uses_true_dag=True
+    )
+
+    st = time.process_time()
+    reward_scm.train()
+    et = time.process_time()
+    print(f"reward scm elapsed time {et - st}")
+
+    scm_path = f"output/scm/true_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_path), exist_ok=True)
+
+    reward_scm_path = f"output/scm/true_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
+
+    with open(scm_path, 'wb') as f:
+        pickle.dump(scm, f)
+
+    with open(reward_scm_path, 'wb') as f:
+        pickle.dump(reward_scm, f)
+
+    # with open(scm_path, 'rb') as f:
+    #     scm = pickle.load(f)
+
+    # with open(reward_scm_path, 'rb') as f:
+    #     reward_scm = pickle.load(f)
+
+    scm_evaluation(env, rl_agent, scm, reward_scm)
+
+    # SCMs using learned DAG
     scm = StructuralCausalModel(
         env,
         rl_agent,
         feature_scm_training_data,
         feature_causal_graph,
-        uses_true_dag=True
+        uses_true_dag=False
     )
 
     st = time.process_time()
@@ -272,7 +326,7 @@ def run_scm_training(args):
         reward_scm_training_data,
         reward_causal_graph,
         is_reward = True,
-        uses_true_dag=True
+        uses_true_dag=False
     )
 
     st = time.process_time()
@@ -298,8 +352,10 @@ def run_scm_training(args):
     # with open(reward_scm_path, 'rb') as f:
     #     reward_scm = pickle.load(f)
 
-    ## Evaluation ##
+    scm_evaluation(env, rl_agent, scm, reward_scm)
 
+
+def scm_evaluation(env, rl_agent, scm, reward_scm):
     if env.name == "mountaincar":
         with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
             test_data = pickle.load(f)
@@ -324,19 +380,13 @@ def run_scm_training(args):
     print(f"action prediction accuracy = {action_accuracy}")
     print(f"avg nrmse = {avg_nrmse}")
 
-    # with open(f"{env.name}_{rl_agent.name}_metrics.txt", 'w') as f:
-    #     f.write("MSE=" + str(mse))
-    #     f.write("MSE ignoring reward=" + str(mse_ignoring_reward))
-    #     f.write("Correct action predictions=" + str(action_predictions))
 
 
 def main(args):
     # for iter in range(0, 3):
     #     run_iter(args, iter)
 
-    # run_scm_training(args)
-    env = get_environment(args)
-    rl_agent = get_rl_algorithm(args, env)
+    run_scm_training(args)
 
     ## Learn causal graph ##
 

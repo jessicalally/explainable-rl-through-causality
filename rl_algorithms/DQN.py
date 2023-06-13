@@ -8,6 +8,7 @@ class DQN:
         self.action_dim = action_dim
         self.observation_dim = observation_dim
         self.model = self.create_model()
+        self.name = "dqn"
 
     def create_model(self):
         state_input = Input(shape=(self.observation_dim))
