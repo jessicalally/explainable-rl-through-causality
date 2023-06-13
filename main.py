@@ -164,16 +164,6 @@ def run_iter(args, iter):
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
-    # Paths
-    rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}_{iter}.pickle"
-    os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
-
-    dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
-    os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
-    
-    reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
-    os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
-
     # Train agent from scratch or load
     # causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
 
@@ -206,15 +196,30 @@ def run_iter(args, iter):
     # with open(rl_agent_path, 'rb') as rl_agent_file:
     #     rl_agent = pickle.load(rl_agent_file)
 
-    with open(dataset_path, 'rb') as dataset_file:
-        causal_discovery_dataset = pickle.load(dataset_file)
+    if env.name == "starcraft":
+        causal_discovery_dataset = np.genfromtxt('starcraft_causal_discovery.csv', delimiter=',')
+        causal_discovery_dataset = causal_discovery_dataset[:500000, :]
+        reward_causal_discovery_dataset = np.genfromtxt('starcraft_reward_causal_discovery.csv', delimiter=',')
+        reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000, :]
+    else:
+        rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}_{iter}.pickle"
+        os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
-    with open(reward_dataset_path, 'rb') as dataset_file:
-        reward_causal_discovery_dataset = pickle.load(dataset_file)
+        dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
+        os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
+        
+        reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
+        os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
 
-    if env.name == "mountaincar":
-        causal_discovery_dataset = np.array(causal_discovery_dataset)
-        reward_causal_discovery_dataset = np.array(reward_causal_discovery_dataset)
+        with open(dataset_path, 'rb') as dataset_file:
+            causal_discovery_dataset = pickle.load(dataset_file)
+
+        with open(reward_dataset_path, 'rb') as dataset_file:
+            reward_causal_discovery_dataset = pickle.load(dataset_file)
+
+        if env.name == "mountaincar":
+            causal_discovery_dataset = np.array(causal_discovery_dataset)
+            reward_causal_discovery_dataset = np.array(reward_causal_discovery_dataset)
 
     run_all_causal_discovery_methods(env, causal_discovery_dataset, reward_causal_discovery_dataset)
 
@@ -329,10 +334,10 @@ def run_scm_training(args):
 
 
 def main(args):
-    # for iter in range(0, 3):
-    #     run_iter(args, iter)
+    for iter in range(0, 1):
+        run_iter(args, iter)
 
-    run_scm_training(args)
+    # run_scm_training(args)
    
 
     ## Learn causal graph ##
