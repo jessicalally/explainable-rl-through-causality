@@ -164,52 +164,57 @@ def run_iter(args, iter):
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
+    # Paths
     rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
-    # Train agent from scratch or load
-    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
-
-    # Generate datasets ##
-    if len(causal_discovery_dataset) < 500000:
-       num_datapoints = 500000 - len(causal_discovery_dataset)
-       causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
-       print(causal_discovery_dataset.shape)
-       print(reward_causal_discovery_dataset.shape)
-       print(causal_discovery_dataset_extended.shape)
-       print(reward_causal_discovery_dataset_extended.shape)
-       causal_discovery_dataset = np.append(causal_discovery_dataset, causal_discovery_dataset_extended, axis=0)
-       reward_causal_discovery_dataset = np.append(reward_causal_discovery_dataset, reward_causal_discovery_dataset_extended, axis=0)
-
-    causal_discovery_dataset = causal_discovery_dataset[:500000]
-    reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000]
-
-    print(causal_discovery_dataset.shape)
-    print(reward_causal_discovery_dataset.shape)
-
     dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
+    
     reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
 
-    with open(rl_agent_path, 'wb') as agent_file:
-        pickle.dump(rl_agent, agent_file)
+    # Train agent from scratch or load
+    # causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
 
-    with open(dataset_path, 'wb') as dataset_file:
-       pickle.dump(causal_discovery_dataset, dataset_file)
+    # # Generate datasets ##
+    # if len(causal_discovery_dataset) < 500000:
+    #    num_datapoints = 500000 - len(causal_discovery_dataset)
+    #    causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+    #    print(causal_discovery_dataset.shape)
+    #    print(reward_causal_discovery_dataset.shape)
+    #    print(causal_discovery_dataset_extended.shape)
+    #    print(reward_causal_discovery_dataset_extended.shape)
+    #    causal_discovery_dataset = np.append(causal_discovery_dataset, causal_discovery_dataset_extended, axis=0)
+    #    reward_causal_discovery_dataset = np.append(reward_causal_discovery_dataset, reward_causal_discovery_dataset_extended, axis=0)
 
-    with open(reward_dataset_path, 'wb') as dataset_file:
-       pickle.dump(reward_causal_discovery_dataset, dataset_file)
+    # causal_discovery_dataset = causal_discovery_dataset[:500000]
+    # reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000]
+
+    # print(causal_discovery_dataset.shape)
+    # print(reward_causal_discovery_dataset.shape)
+
+    # with open(rl_agent_path, 'wb') as agent_file:
+    #     pickle.dump(rl_agent, agent_file)
+
+    # with open(dataset_path, 'wb') as dataset_file:
+    #    pickle.dump(causal_discovery_dataset, dataset_file)
+
+    # with open(reward_dataset_path, 'wb') as dataset_file:
+    #    pickle.dump(reward_causal_discovery_dataset, dataset_file)
 
     # with open(rl_agent_path, 'rb') as rl_agent_file:
     #     rl_agent = pickle.load(rl_agent_file)
 
-    # with open(dataset_path, 'rb') as dataset_file:
-    #     causal_discovery_dataset = pickle.load(dataset_file)
+    with open(dataset_path, 'rb') as dataset_file:
+        causal_discovery_dataset = pickle.load(dataset_file)
 
-    # with open(reward_dataset_path, 'rb') as dataset_file:
-    #     reward_causal_discovery_dataset = pickle.load(dataset_file)
+    with open(reward_dataset_path, 'rb') as dataset_file:
+        reward_causal_discovery_dataset = pickle.load(dataset_file)
 
+    if env.name == "mountaincar":
+        causal_discovery_dataset = np.array(causal_discovery_dataset)
+        reward_causal_discovery_dataset = np.array(reward_causal_discovery_dataset)
 
     run_all_causal_discovery_methods(env, causal_discovery_dataset, reward_causal_discovery_dataset)
 
@@ -291,12 +296,19 @@ def run_scm_training(args):
 
     ## Evaluation ##
 
-    num_datapoints = 10000
+    if env.name == "mountaincar":
+        with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
+            test_data = pickle.load(f)
 
-    test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
-    print(test_data.shape)
-    rnd_indices = np.random.choice(len(test_data), 2500)
-    test_data = test_data[rnd_indices]
+        with open("adjusted_reward_dqn_mountaincar_test_data.pickle", 'rb') as f:
+            reward_test_data = pickle.load(f)
+    else:
+        num_datapoints = 10000
+
+        test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+        print(test_data.shape)
+        rnd_indices = np.random.choice(len(test_data), 2500)
+        test_data = test_data[rnd_indices]
 
     print(f'Data: {test_data.shape}')
 
@@ -310,7 +322,11 @@ def run_scm_training(args):
 
 
 def main(args):
-    run_scm_training(args)
+    for iter in range(0, 3):
+        run_iter(args, iter)
+
+
+    # run_scm_training(args)
    
 
     ## Learn causal graph ##
