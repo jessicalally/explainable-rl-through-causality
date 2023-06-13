@@ -6,10 +6,11 @@ import pandas as pd
 
 # SCM with actions represented explicitly as a separate state variable
 class StructuralCausalModel:
-    def __init__(self, env, rl_agent, data_set, learned_causal_graph=None, is_reward=False):
+    def __init__(self, env, rl_agent, data_set, learned_causal_graph=None, is_reward=False, uses_true_dag=False):
         self.env = env
         self.rl_agent = rl_agent
         self.is_reward = is_reward
+        self.uses_true_dag = uses_true_dag
 
         if learned_causal_graph is not None:
             self.causal_graph = learned_causal_graph
@@ -60,7 +61,7 @@ class StructuralCausalModel:
                 classifier = tf.estimator.DNNClassifier(
                     n_classes=self.env.action_space,
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/' + f'{self.env.name}-{self.rl_agent.name}' + '/linear_classifier/' + str(node) + str(self.is_reward),
+                    model_dir='scm_models/' + f'{self.env.name}-{self.rl_agent.name}-{self.uses_true_dag}' + '/linear_classifier/' + str(node) + str(self.is_reward),
                     hidden_units=[64, 128, 64, 32],
                     dropout=0.2,
                 )
@@ -75,7 +76,7 @@ class StructuralCausalModel:
 
                 lr = tf.estimator.LinearRegressor(
                     feature_columns=x_feature_cols,
-                    model_dir='scm_models/' + f'{self.env.name}-{self.rl_agent.name}' + '/linear_regressor/' + str(node) + str(self.is_reward))
+                    model_dir='scm_models/' + f'{self.env.name}-{self.rl_agent.name}-{self.uses_true_dag}' + '/linear_regressor/' + str(node) + str(self.is_reward))
 
                 structural_equations[node] = {
                     'X': x_data, 'Y': y_data, 'function': lr, 'type': 'state'}

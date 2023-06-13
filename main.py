@@ -255,7 +255,8 @@ def run_scm_training(args):
         env,
         rl_agent,
         feature_scm_training_data,
-        feature_causal_graph
+        feature_causal_graph,
+        uses_true_dag=True
     )
 
     st = time.process_time()
@@ -269,6 +270,7 @@ def run_scm_training(args):
         reward_scm_training_data,
         reward_causal_graph,
         is_reward = True,
+        uses_true_dag=True
     )
 
     st = time.process_time()
@@ -312,8 +314,13 @@ def run_scm_training(args):
 
     print(f'Data: {test_data.shape}')
 
-    accuracy = evaluation.task_prediction(test_data, scm)
-    print("Accuracy="+str(accuracy))
+    avg_nrmse, action_accuracy = evaluation.evaluate_scm(scm, test_data)
+    print(f"action prediction accuracy = {action_accuracy}")
+    print(f"avg nrmse = {avg_nrmse}")
+
+    avg_nrmse, action_accuracy = evaluation.evaluate_scm(reward_scm, reward_test_data)
+    print(f"action prediction accuracy = {action_accuracy}")
+    print(f"avg nrmse = {avg_nrmse}")
 
     # with open(f"{env.name}_{rl_agent.name}_metrics.txt", 'w') as f:
     #     f.write("MSE=" + str(mse))
@@ -322,11 +329,10 @@ def run_scm_training(args):
 
 
 def main(args):
-    for iter in range(0, 3):
-        run_iter(args, iter)
+    # for iter in range(0, 3):
+    #     run_iter(args, iter)
 
-
-    # run_scm_training(args)
+    run_scm_training(args)
    
 
     ## Learn causal graph ##
