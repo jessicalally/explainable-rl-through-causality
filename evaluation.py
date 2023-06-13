@@ -146,7 +146,7 @@ def evaluate_scm(scm, test_data, num_test_points=1000):
     nrmse_per_feature = {}
 
     for node in rmse_per_feature:
-        nrmse_per_feature[node] = rmse_per_feature[node] / avg_prediction_per_feature[node]
+        nrmse_per_feature[node] = rmse_per_feature[node] / abs(avg_prediction_per_feature[node])
 
     avg_nrmse = sum(nrmse_per_feature.values()) / len(nrmse_per_feature)
     avg_correct_action_predictions = num_correct_action_predictions / num_test_points
