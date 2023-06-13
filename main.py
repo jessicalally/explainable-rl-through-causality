@@ -296,12 +296,19 @@ def run_scm_training(args):
 
     ## Evaluation ##
 
-    num_datapoints = 10000
+    if env.name == "mountaincar":
+        with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
+            test_data = pickle.load(f)
 
-    test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
-    print(test_data.shape)
-    rnd_indices = np.random.choice(len(test_data), 2500)
-    test_data = test_data[rnd_indices]
+        with open("adjusted_reward_dqn_mountaincar_test_data.pickle", 'rb') as f:
+            reward_test_data = pickle.load(f)
+    else:
+        num_datapoints = 10000
+
+        test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+        print(test_data.shape)
+        rnd_indices = np.random.choice(len(test_data), 2500)
+        test_data = test_data[rnd_indices]
 
     print(f'Data: {test_data.shape}')
 
