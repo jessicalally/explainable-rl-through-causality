@@ -381,12 +381,73 @@ def scm_evaluation(env, rl_agent, scm, reward_scm):
     print(f"avg nrmse = {avg_nrmse}")
 
 
+def run_explanation_generation():
+    env = get_environment(args)
+    rl_agent = get_rl_algorithm(args, env)
+
+    if env.name != "mountaincar":
+        rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+        os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
+
+        with open(rl_agent_path, 'rb') as rl_agent_file:
+            rl_agent = pickle.load(rl_agent_file)
+
+    scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_path), exist_ok=True)
+
+    reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
+
+    with open(scm_path, 'rb') as f:
+        scm = pickle.load(f)
+
+    with open(reward_scm_path, 'rb') as f:
+        reward_scm = pickle.load(f)
+
+    # Generate test data
+    if env.name == "mountaincar":
+        with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
+            test_data = pickle.load(f)
+
+    else:
+        num_datapoints = 10000
+
+        test_data, _ = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+        print(test_data.shape)
+        rnd_indices = np.random.choice(len(test_data), 2500)
+        test_data = test_data[rnd_indices]
+
+    print(f'Data: {test_data.shape}')
+
+    why_explanations = set()
+    why_not_explanations = set()
+
+    explanation_generator = ExplanationGenerator(env, scm, reward_scm, rl_agent)
+    for i in range(10):
+        if env.name == "taxi":
+            pertubation = 1.0
+        else:
+            pertubation = 0.01
+
+        example_state = test_data[i][:env.state_space]
+        example_action = test_data[i][env.state_space]
+        example_counter_action = choice([i for i in range(env.action_space) if i != example_action])
+        why_explanation = explanation_generator.generate_why_explanation(example_state, example_action, pertubation)
+        why_explanations.add(why_explanation)
+        print(f'Why {env.actions[example_action]}?\n {why_explanation}')
+
+        why_not_explanation = explanation_generator.generate_why_not_explanation(example_state, example_action, example_counter_action, pertubation)
+        print(f'Why not {env.actions[example_counter_action]}?\n {why_not_explanation}')
+        why_not_explanations.add(why_not_explanation)
+
 
 def main(args):
     # for iter in range(0, 3):
     #     run_iter(args, iter)
 
-    run_scm_training(args)
+    # run_scm_training(args)
+
+    run_explanation_generation()
 
     ## Learn causal graph ##
 
