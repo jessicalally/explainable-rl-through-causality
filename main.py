@@ -57,7 +57,7 @@ def get_rl_algorithm(args, env):
         return PolicyGradient(env)
     elif args.rl == "dqn":
         agent = DQN(env.action_space, env.state_space)
-        agent.model.load_weights("output/trained_rl_agents/mountaincar_dqn_0.h5")
+        agent.model.load_weights("output/trained_rl_agents/mountaincar_dqn.h5")
         return agent
     elif args.rl == "ddqn":
         if args.env == "cartpole":
@@ -166,11 +166,11 @@ def run_causal_discovery_optimal_methods(env, causal_discovery_dataset, reward_c
     print(met)
     print(f"elapsed time {et - st}")
 
-    if not np.any(causal_matrix_with_assumptions[:, -1]):
+    if not np.any(causal_matrix_with_assumptions[:-1, -1]):
         print(f"old matrix {causal_matrix_with_assumptions}")
         # Reward causal discovery has picked up no reward features, so we make the assumption
         # that every feature influences the reward
-        causal_matrix_with_assumptions[:, -1] = 1
+        causal_matrix_with_assumptions[:-1, -1] = 1
         print(f"new matrix {causal_matrix_with_assumptions}")
 
         learned_reward_causal_graph = nx.from_numpy_matrix(
@@ -264,126 +264,92 @@ def run_scm_training(args):
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
-    if env.name != "mountaincar":
-        rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
-        os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
+    if env.name == "starcraft":
+        causal_discovery_dataset = np.genfromtxt('starcraft_causal_discovery.csv', delimiter=',')
+        reward_causal_discovery_dataset = np.genfromtxt('starcraft_reward_causal_discovery.csv', delimiter=',')
+    else:
+        if env.name != "mountaincar":
+            rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+            os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
-        with open(rl_agent_path, 'rb') as rl_agent_file:
-            rl_agent = pickle.load(rl_agent_file)
+            with open(rl_agent_path, 'rb') as rl_agent_file:
+                rl_agent = pickle.load(rl_agent_file)
 
-    dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
-    os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
-    reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
-    os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
+        dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+        os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
+        reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+        os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
 
-    with open(dataset_path, 'rb') as dataset_file:
-        causal_discovery_dataset = pickle.load(dataset_file)
+        with open(dataset_path, 'rb') as dataset_file:
+            causal_discovery_dataset = pickle.load(dataset_file)
 
-    with open(reward_dataset_path, 'rb') as dataset_file:
-        reward_causal_discovery_dataset = pickle.load(dataset_file)
+        with open(reward_dataset_path, 'rb') as dataset_file:
+            reward_causal_discovery_dataset = pickle.load(dataset_file)
 
-    if env.name == "mountaincar":
-        causal_discovery_dataset = np.array(causal_discovery_dataset)
-        reward_causal_discovery_dataset = np.array(reward_causal_discovery_dataset)
+        if env.name == "mountaincar":
+            causal_discovery_dataset = np.array(causal_discovery_dataset)
+            reward_causal_discovery_dataset = np.array(reward_causal_discovery_dataset)
 
     feature_causal_graph, reward_causal_graph = run_causal_discovery_optimal_methods(env, causal_discovery_dataset, reward_causal_discovery_dataset)
+    feature_scm_test_data = None
+    reward_scm_test_data = None
 
     ## Train structural causal model ##
+    if env.name == "starcraft":
+        rnd_indices = np.random.choice(len(causal_discovery_dataset), 20000)
+        feature_scm_training_data = causal_discovery_dataset[rnd_indices[:10000]]
+        feature_scm_test_data = causal_discovery_dataset[rnd_indices[10000:]]
 
-    # Reduce dataset and randomise to reduce overfitting
-    # rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
-    # feature_scm_training_data = causal_discovery_dataset[rnd_indices]
+        rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 20000)
+        reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices[:10000]]
+        reward_scm_test_data = reward_causal_discovery_dataset[rnd_indices[10000:]]
+    else:
+        # Reduce dataset and randomise to reduce overfitting
+        rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
+        feature_scm_training_data = causal_discovery_dataset[rnd_indices]
 
-    # rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
-    # reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
+        rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
+        reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
 
-    # # SCMs using true DAG
-    # scm = StructuralCausalModel(
-    #     env,
-    #     rl_agent,
-    #     feature_scm_training_data,
-    #     nx.from_numpy_matrix(env.true_dag, create_using=nx.MultiDiGraph()),
-    #     uses_true_dag=True
-    # )
+    # SCMs using true DAG
+    scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        feature_scm_training_data,
+        nx.from_numpy_matrix(env.true_dag, create_using=nx.MultiDiGraph()),
+        uses_true_dag=True
+    )
 
-    # st = time.process_time()
-    # scm.train()
-    # et = time.process_time()
-    # print(f"feature scm elapsed time {et - st}")
+    st = time.process_time()
+    scm.train()
+    et = time.process_time()
+    print(f"feature scm elapsed time {et - st}")
 
-    # reward_scm = StructuralCausalModel(
-    #     env,
-    #     rl_agent,
-    #     reward_scm_training_data,
-    #     nx.from_numpy_matrix(env.reward_true_dag, create_using=nx.MultiDiGraph()),
-    #     is_reward = True,
-    #     uses_true_dag=True
-    # )
+    reward_scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        reward_scm_training_data,
+        nx.from_numpy_matrix(env.reward_true_dag, create_using=nx.MultiDiGraph()),
+        is_reward = True,
+        uses_true_dag=True
+    )
 
-    # st = time.process_time()
-    # reward_scm.train()
-    # et = time.process_time()
-    # print(f"reward scm elapsed time {et - st}")
+    st = time.process_time()
+    reward_scm.train()
+    et = time.process_time()
+    print(f"reward scm elapsed time {et - st}")
 
-    # scm_path = f"output/scm/true_dag/feature/{env.name}_{rl_agent.name}.pickle"
-    # os.makedirs(os.path.dirname(scm_path), exist_ok=True)
+    scm_path = f"output/scm/true_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_path), exist_ok=True)
 
-    # reward_scm_path = f"output/scm/true_dag/reward/{env.name}_{rl_agent.name}.pickle"
-    # os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
+    reward_scm_path = f"output/scm/true_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
 
-    # with open(scm_path, 'wb') as f:
-    #     pickle.dump(scm, f)
+    with open(scm_path, 'wb') as f:
+        pickle.dump(scm, f)
 
-    # with open(reward_scm_path, 'wb') as f:
-    #     pickle.dump(reward_scm, f)
-
-    # # with open(scm_path, 'rb') as f:
-    # #     scm = pickle.load(f)
-
-    # # with open(reward_scm_path, 'rb') as f:
-    # #     reward_scm = pickle.load(f)
-
-    # scm_evaluation(env, rl_agent, scm, reward_scm)
-
-    # # SCMs using learned DAG
-    # scm = StructuralCausalModel(
-    #     env,
-    #     rl_agent,
-    #     feature_scm_training_data,
-    #     feature_causal_graph,
-    #     uses_true_dag=False
-    # )
-
-    # st = time.process_time()
-    # scm.train()
-    # et = time.process_time()
-    # print(f"feature scm elapsed time {et - st}")
-
-    # reward_scm = StructuralCausalModel(
-    #     env,
-    #     rl_agent,
-    #     reward_scm_training_data,
-    #     reward_causal_graph,
-    #     is_reward = True,
-    #     uses_true_dag=False
-    # )
-
-    # st = time.process_time()
-    # reward_scm.train()
-    # et = time.process_time()
-    # print(f"reward scm elapsed time {et - st}")
-
-    # scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}.pickle"
-    # os.makedirs(os.path.dirname(scm_path), exist_ok=True)
-
-    # reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}.pickle"
-    # os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
-
-    # with open(scm_path, 'wb') as f:
-    #     pickle.dump(scm, f)
-
-    # with open(reward_scm_path, 'wb') as f:
-    #     pickle.dump(reward_scm, f)
+    with open(reward_scm_path, 'wb') as f:
+        pickle.dump(reward_scm, f)
 
     # with open(scm_path, 'rb') as f:
     #     scm = pickle.load(f)
@@ -391,23 +357,72 @@ def run_scm_training(args):
     # with open(reward_scm_path, 'rb') as f:
     #     reward_scm = pickle.load(f)
 
-    # scm_evaluation(env, rl_agent, scm, reward_scm)
+    scm_evaluation(env, rl_agent, scm, reward_scm, feature_scm_test_data, reward_scm_test_data)
+
+    # SCMs using learned DAG
+    scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        feature_scm_training_data,
+        feature_causal_graph,
+        uses_true_dag=False
+    )
+
+    st = time.process_time()
+    scm.train()
+    et = time.process_time()
+    print(f"feature scm elapsed time {et - st}")
+
+    reward_scm = StructuralCausalModel(
+        env,
+        rl_agent,
+        reward_scm_training_data,
+        reward_causal_graph,
+        is_reward = True,
+        uses_true_dag=False
+    )
+
+    st = time.process_time()
+    reward_scm.train()
+    et = time.process_time()
+    print(f"reward scm elapsed time {et - st}")
+
+    scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(scm_path), exist_ok=True)
+
+    reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
+
+    with open(scm_path, 'wb') as f:
+        pickle.dump(scm, f)
+
+    with open(reward_scm_path, 'wb') as f:
+        pickle.dump(reward_scm, f)
+
+    with open(scm_path, 'rb') as f:
+        scm = pickle.load(f)
+
+    with open(reward_scm_path, 'rb') as f:
+        reward_scm = pickle.load(f)
+
+    scm_evaluation(env, rl_agent, scm, reward_scm, feature_scm_test_data, reward_scm_test_data)
 
 
-def scm_evaluation(env, rl_agent, scm, reward_scm):
-    if env.name == "mountaincar":
-        with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
-            test_data = pickle.load(f)
+def scm_evaluation(env, rl_agent, scm, reward_scm, test_data=None, reward_test_data=None):
+    if test_data is None and reward_test_data is None:
+        if env.name == "mountaincar":
+            with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
+                test_data = np.array(pickle.load(f))
 
-        with open("adjusted_reward_dqn_mountaincar_test_data.pickle", 'rb') as f:
-            reward_test_data = pickle.load(f)
-    else:
-        num_datapoints = 10000
+            with open("adjusted_reward_dqn_mountaincar_test_data.pickle", 'rb') as f:
+                reward_test_data = np.array(pickle.load(f))
+        else:
+            num_datapoints = 10000
 
-        test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
-        print(test_data.shape)
-        rnd_indices = np.random.choice(len(test_data), 2500)
-        test_data = test_data[rnd_indices]
+            test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+            print(test_data.shape)
+            rnd_indices = np.random.choice(len(test_data), 2500)
+            test_data = test_data[rnd_indices]
 
     print(f'Data: {test_data.shape}')
 
