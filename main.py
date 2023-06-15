@@ -259,6 +259,24 @@ def run_iter(args, iter):
 
     run_all_causal_discovery_methods(env, causal_discovery_dataset, reward_causal_discovery_dataset)
 
+def map_starcraft_actions_to_indices(env, data):
+    action_map = {0: 0, 2: 0, 7: 0, 91: 1, 42: 2, 477: 3, 13: 4}
+    # 0: 'do nothing'
+    # 2: 'select point'
+    # 7: 'select army'
+    # 91: 'build supply depot'
+    # 42: 'build barracks'
+    # 477: 'train marine
+    # 13: 'attack'
+    actions = data[:, env.state_space]
+
+    for i, action in enumerate(actions):
+        actions[i] = action_map[action]
+
+    data[:, env.state_space] = actions
+
+    return data
+
 
 def run_scm_training(args):
     env = get_environment(args)
@@ -266,6 +284,7 @@ def run_scm_training(args):
 
     if env.name == "starcraft":
         causal_discovery_dataset = np.genfromtxt('starcraft_causal_discovery.csv', delimiter=',')
+        causal_discovery_dataset = map_starcraft_actions_to_indices(env, causal_discovery_dataset)
         reward_causal_discovery_dataset = np.genfromtxt('starcraft_reward_causal_discovery.csv', delimiter=',')
     else:
         if env.name != "mountaincar":
@@ -439,7 +458,7 @@ def run_explanation_generation():
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
-    if env.name != "mountaincar":
+    if env.name != "mountaincar" or "starcraft":
         rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
         os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
@@ -462,19 +481,21 @@ def run_explanation_generation():
     if env.name == "mountaincar":
         with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
             test_data = pickle.load(f)
+    elif env.name == "starcraft":
+        causal_discovery_dataset = np.genfromtxt('starcraft_causal_discovery.csv', delimiter=',')
+        test_data = map_starcraft_actions_to_indices(env, causal_discovery_dataset)
 
     else:
-        num_datapoints = 10000
-
+        num_datapoints = 1000
         test_data, _ = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
-        print(test_data.shape)
-        rnd_indices = np.random.choice(len(test_data), 2500)
-        test_data = test_data[rnd_indices]
 
     print(f'Data: {test_data.shape}')
 
     why_explanations = set()
     why_not_explanations = set()
+
+    rnd_indices = np.random.choice(len(test_data), 10)
+    test_data = test_data[rnd_indices]
 
     explanation_generator = ExplanationGenerator(env, scm, reward_scm, rl_agent)
     for i in range(10):
@@ -499,9 +520,9 @@ def main(args):
     # for iter in range(0, 1):
     #   run_iter(args, iter)
 
-    run_scm_training(args)
+    # run_scm_training(args)
 
-    # run_explanation_generation()
+    run_explanation_generation()
 
     ## Learn causal graph ##
 
