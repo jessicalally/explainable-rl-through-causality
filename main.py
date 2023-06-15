@@ -324,11 +324,11 @@ def run_scm_training(args):
         reward_scm_test_data = reward_causal_discovery_dataset[rnd_indices[10000:]]
     else:
         # Reduce dataset and randomise to reduce overfitting
-        rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
-        feature_scm_training_data = causal_discovery_dataset[rnd_indices]
+        # rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
+        feature_scm_training_data = causal_discovery_dataset[:10000]
 
-        rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
-        reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
+        # rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
+        reward_scm_training_data = reward_causal_discovery_dataset[:10000]
 
     # SCMs using true DAG
     scm = StructuralCausalModel(
@@ -493,6 +493,7 @@ def run_explanation_generation():
 
     why_explanations = set()
     why_not_explanations = set()
+    os.makedirs(os.path.dirname("output/explanations"), exist_ok=True)
 
     rnd_indices = np.random.choice(len(test_data), 10)
     test_data = test_data[rnd_indices]
@@ -520,7 +521,7 @@ def main(args):
     # for iter in range(0, 1):
     #   run_iter(args, iter)
 
-    # run_scm_training(args)
+    run_scm_training(args)
 
     run_explanation_generation()
 

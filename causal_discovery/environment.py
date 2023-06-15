@@ -594,7 +594,7 @@ class Taxi(Environment):
 class Starcraft(Environment):
     name = "starcraft"
     state_space = 9
-    action_space = 4
+    action_space = 5 # includes a do-nothing action
     env = None  # TODO
 
     true_dag = np.array([
