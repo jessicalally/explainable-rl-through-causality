@@ -661,7 +661,8 @@ class Starcraft(Environment):
         1: "build supply depot",
         2: "build barracks",
         3: "train marine",
-        4: "attack",    }
+        4: "attack",
+    }
 
     features = {
         0: 'worker supply number',
@@ -673,6 +674,16 @@ class Starcraft(Environment):
         6: 'ally unit location',
         7: 'destroyed units',
         8: 'destroyed buildings',
+        9: 'action',
+        10: 'worker supply number',
+        11: 'supply depot number',
+        12: 'barracks number',
+        13: 'enemy location',
+        14: 'ally unit number',
+        15: 'ally unit health',
+        16: 'ally unit location',
+        17: 'destroyed units',
+        18: 'destroyed buildings',
     }
 
 
