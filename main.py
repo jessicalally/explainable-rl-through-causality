@@ -284,7 +284,7 @@ def run_scm_training(args):
 
     if env.name == "starcraft":
         causal_discovery_dataset = np.genfromtxt('starcraft_causal_discovery.csv', delimiter=',')
-        causal_discovery_dataset = map_starcraft_actions_to_indices(env, causal_discovery_dataset)
+        causal_discovery_dataset_adj = np.genfromtxt('starcraft_causal_discovery_adjusted.csv', delimiter=',')
         reward_causal_discovery_dataset = np.genfromtxt('starcraft_reward_causal_discovery.csv', delimiter=',')
     else:
         if env.name != "mountaincar":
