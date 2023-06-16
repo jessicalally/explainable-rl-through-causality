@@ -4,6 +4,7 @@ import networkx as nx
 import numpy as np
 import pandas as pd
 import torch
+import copy
 
 
 class ExplanationGenerator():
@@ -36,17 +37,14 @@ class ExplanationGenerator():
 
         # Generate the causal chains for a single timestep
         head_nodes = [node for node in self.scm.causal_graph.predecessors(action_node)]
-        print(f'head nodes {head_nodes}')
-        print(f'sink nodes {sink_nodes}')
 
         one_step_causal_chains = self._get_one_step_causal_chains(
             head_nodes, sink_nodes, self.scm.causal_graph)
         
-        print(f'one step causal chains {one_step_causal_chains}')
-
         multistep_causal_chains = self._generate_multistep_causal_chains(
             one_step_causal_chains)
-        print(f'multistep causal chains {multistep_causal_chains}')
+
+        print(f"STATE {state} ACTION {action}")
 
         # Predict the values of all nodes using the trained structural
         # equations
@@ -55,9 +53,9 @@ class ExplanationGenerator():
             datapoint[idx] = val
 
         datapoint[self.scm.env.action_node] = action
-        print(f"datapoint {datapoint}")
+        print(f"DATAPOINT {datapoint}")
         predicted_nodes = self.scm.predict_from_scm(datapoint)
-        print(f'predicted nodes {predicted_nodes}')
+        print(f'PREDICTED NODES {predicted_nodes}')
 
         # Get the causal chains with the head node of the most important feature - 
         # we do this in order of importance in case the most important feature has
@@ -66,7 +64,6 @@ class ExplanationGenerator():
             state, pertubation)
         
         features_by_importance = np.flip(np.argsort(importance_vector))
-        print(f'features ordered by importance {features_by_importance}')
         causal_chains = []
         most_important_feature = 0
 
@@ -75,9 +72,7 @@ class ExplanationGenerator():
             # these as explanation
             feature_causal_chains = [
                 chain for chain in multistep_causal_chains if chain[0][0] == feature]
-            
-            print(f'feature {feature} : {feature_causal_chains}')
-            
+                        
             if len(feature_causal_chains) > 0:
                 most_important_feature = feature
                 feature_causal_chains.sort()
@@ -90,7 +85,6 @@ class ExplanationGenerator():
 
         # Get all nodes that are immediately affected by the current action
         imm_nodes = {chain[0][1] for chain in causal_chains}
-        print(f'imm nodes {imm_nodes}')
 
         # Get diff between current node value and predicted node value for
         # the next node in the causal chain
@@ -132,6 +126,8 @@ class ExplanationGenerator():
                     else:
                         explanation += f'{self.env.features[node]}, which influences '
 
+        print(explanation)
+
         pd.DataFrame.from_dict(
             data={most_important_feature: explanation},
             orient='index').to_csv(
@@ -157,23 +153,21 @@ class ExplanationGenerator():
 
         # Generate the causal chains for a single timestep
         head_nodes = [node for node in self.scm.causal_graph.predecessors(action_node)]
-        print(f'head nodes {head_nodes}')
         one_step_causal_chains = self._get_one_step_causal_chains(
             head_nodes, sink_nodes, self.scm.causal_graph)
-        print(f'one step causal chains {one_step_causal_chains}')
 
         multistep_causal_chains = self._generate_multistep_causal_chains(
             one_step_causal_chains)
-        print(f'multistep causal chains {multistep_causal_chains}')
 
         # Predict the values of all nodes using the trained structural
         # equations
         datapoint = np.zeros((self.env.state_space * 2) + 1)
+        print(f"STATE {state} ACTION {action} COUNTER {counter_action}")
         for idx, val in enumerate(state):
             datapoint[idx] = val
 
         datapoint[self.env.action_node] = action
-        print(f"datapoint {datapoint}")
+        print(f"DATAPOINT {datapoint}")
         predicted_nodes = self.scm.predict_from_scm(datapoint)
         print(f'predicted nodes {predicted_nodes}')
 
@@ -184,8 +178,8 @@ class ExplanationGenerator():
             counter_datapoint[idx] = val
 
         counter_datapoint[self.env.action_node] = counter_action
-        print(f"counter datapoint {counter_datapoint}")
-        predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint)
+        print(f"COUNTER DATAPOINT {counter_datapoint}")
+        predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint, ignore_action=True)
         print(f'predicted_counter_nodes {predicted_counter_nodes}')
 
         importance_vector = self._estimate_q_function_feature_importance(state, pertubation=pertubation)  
@@ -200,9 +194,7 @@ class ExplanationGenerator():
             # these as explanation
             feature_causal_chains = [
                 chain for chain in multistep_causal_chains if chain[0][0] == feature]
-            
-            print(f'feature {feature} : {feature_causal_chains}')
-            
+                        
             if len(feature_causal_chains) > 0:
                 most_important_feature = feature
                 feature_causal_chains.sort()
@@ -215,7 +207,6 @@ class ExplanationGenerator():
 
         # Get all nodes that are immediately affected by the current action
         imm_nodes = {chain[0][1] for chain in causal_chains}
-        print(f'imm nodes {imm_nodes}')
 
         # Get diff between current node value and predicted node value for
         # the next node in the causal chain
@@ -243,9 +234,7 @@ class ExplanationGenerator():
         explanation += f'in the next time step from the current state \n{self._convert_state_to_text(state)}.\n Because: '
 
         for causal_chain in causal_chains:
-            print(f'causal chain {causal_chain}')
             for i, step in enumerate(causal_chain):
-                print(f'step {step}')
                 # TODO: replace with idx to reward node
                 for j, node in enumerate(step):
                     # Always skip j == 0
@@ -365,33 +354,25 @@ class ExplanationGenerator():
     def _estimate_q_function_feature_importance(self, state, pertubation):
         # TODO: we should have a min pertubation in case the state feature = 0.0
         min_pertubation = 0.001
-        # TODO: should the pertubation be relative to the state feature bounds as well?? So that we change each feature by the same percentage
-        # Without accounting for the state values, pertubation almost always causes the pole angular velocity to be the most importat state variable
-        # and sometimes the pole angle
-        # State feature bounds might not be possible because some of the bounds are infinite
-        # TODO: what about doing it relative to the current state variable value?
-        # pertubation should be 0.01 for continuous features, and smallest unit
-        # for discrete features, as in paper
         q_values = self.rl_agent.get_q_values(state)
         action = np.argmax(q_values)
         state_tensor = torch.DoubleTensor(state).unsqueeze(0)
 
         importance_vector = np.full(state_tensor.shape[1], q_values[action])
-        print(f'importance vector {importance_vector}')
 
         # Apply small pertubation to each state variable, and recalculate the
         # q_values
         for i in range(len(state)):
-            pertubated_state = state
+            pertubated_state = copy.deepcopy(state)
             # Applying a 1% pertubation
             pertubated_state[i] *= 1.0 + pertubation
-            print(f'pertubated state {pertubated_state}')
+            print(f'PERTUBATED STATE {pertubated_state}')
             updated_q_values = self.rl_agent.get_q_values(pertubated_state)
             print(f'updated q values {updated_q_values}')
             importance_vector[i] = (
                 abs(updated_q_values[action] - importance_vector[i]) / pertubation)
 
-        print(f"importance vector {importance_vector}")
+        print(f"IMPORTANCE VECTOR {importance_vector}")
 
         return importance_vector
 

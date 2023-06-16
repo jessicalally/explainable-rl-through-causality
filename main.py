@@ -324,11 +324,11 @@ def run_scm_training(args):
         reward_scm_test_data = reward_causal_discovery_dataset[rnd_indices[10000:]]
     else:
         # Reduce dataset and randomise to reduce overfitting
-        # rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
-        feature_scm_training_data = causal_discovery_dataset[:10000]
+        rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
+        feature_scm_training_data = causal_discovery_dataset[rnd_indices]
 
-        # rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
-        reward_scm_training_data = reward_causal_discovery_dataset[:10000]
+        rnd_indices = np.random.choice(len(reward_causal_discovery_dataset), 10000)
+        reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
 
     # SCMs using true DAG
     scm = StructuralCausalModel(
@@ -370,11 +370,11 @@ def run_scm_training(args):
     with open(reward_scm_path, 'wb') as f:
         pickle.dump(reward_scm, f)
 
-    # with open(scm_path, 'rb') as f:
-    #     scm = pickle.load(f)
+    with open(scm_path, 'rb') as f:
+        scm = pickle.load(f)
 
-    # with open(reward_scm_path, 'rb') as f:
-    #     reward_scm = pickle.load(f)
+    with open(reward_scm_path, 'rb') as f:
+        reward_scm = pickle.load(f)
 
     scm_evaluation(env, rl_agent, scm, reward_scm, feature_scm_test_data, reward_scm_test_data)
 
@@ -522,7 +522,6 @@ def main(args):
     #   run_iter(args, iter)
 
     run_scm_training(args)
-
     run_explanation_generation()
 
     ## Learn causal graph ##

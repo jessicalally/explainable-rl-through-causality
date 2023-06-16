@@ -113,13 +113,14 @@ class StructuralCausalModel:
             num_epochs=num_epochs,
             shuffle=shuffle)
 
-    def predict_from_scm(self, test_data):
+    def predict_from_scm(self, test_data, ignore_action=False):
         predict_y = {}
 
         for node in self.structural_equations:
             predecessors = self.causal_graph.predecessors(node)
 
             x_data = test_data[list(predecessors)]
+            print(f"node {node} preds {predecessors} x data {x_data}")
             pred = self.structural_equations[node]['function'].predict(
                 input_fn=self.get_predict_fn(
                     x_data, num_epochs=1, n_batch=128, shuffle=False))
@@ -129,9 +130,10 @@ class StructuralCausalModel:
                     [item['predictions'][0] for item in pred])
             else:
                 assert (self.structural_equations[node]['type'] == 'action')
-
-                predict_y[node] = np.array(
-                    [np.argmax(item['probabilities']) for item in pred])
+                
+                if not ignore_action:
+                    predict_y[node] = np.array(
+                        [np.argmax(item['probabilities']) for item in pred])
 
         return predict_y
 
@@ -332,7 +334,7 @@ class StructuralCausalModel:
 
         predicted_optimal_nodes = self.predict_from_scm(optimal_transition)
         predicted_counterfactual_nodes = self.predict_from_scm(
-            counterfactual_transition)
+            counterfactual_transition, ignore_action=True)
 
         for causal_chain in causal_chains:
             # Get predicted values for all nodes in the causal chain
