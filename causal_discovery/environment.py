@@ -594,6 +594,7 @@ class Taxi(Environment):
 class Starcraft(Environment):
     name = "starcraft"
     state_space = 9
+    action_node = 9
     action_space = 5 # includes a do-nothing action
     env = None  # TODO
 
@@ -654,6 +655,26 @@ class Starcraft(Environment):
         'Db(t-1)'
         'A(t-1)',
     ]
+
+    actions = {
+        0: "do nothing",
+        1: "build supply depot",
+        2: "build barracks",
+        3: "train marine",
+        4: "attack",    }
+
+    features = {
+        0: 'worker supply number',
+        1: 'supply depot number',
+        2: 'barracks number',
+        3: 'enemy location',
+        4: 'ally unit number',
+        5: 'ally unit health',
+        6: 'ally unit location',
+        7: 'destroyed units',
+        8: 'destroyed buildings',
+    }
+
 
     forbidden_edges_reward = [
         (9, 0),

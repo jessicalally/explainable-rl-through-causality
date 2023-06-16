@@ -458,7 +458,7 @@ def run_explanation_generation():
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
-    if env.name != "mountaincar" or "starcraft":
+    if env.name != "mountaincar" and env.name != "starcraft":
         rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
         os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
@@ -482,9 +482,7 @@ def run_explanation_generation():
         with open("transition_dqn_mountaincar_test_data.pickle", 'rb') as f:
             test_data = pickle.load(f)
     elif env.name == "starcraft":
-        causal_discovery_dataset = np.genfromtxt('starcraft_causal_discovery.csv', delimiter=',')
-        test_data = map_starcraft_actions_to_indices(env, causal_discovery_dataset)
-
+        test_data = np.genfromtxt('starcraft_causal_discovery_adjusted.csv', delimiter=',')
     else:
         num_datapoints = 1000
         test_data, _ = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
@@ -521,7 +519,7 @@ def main(args):
     # for iter in range(0, 1):
     #   run_iter(args, iter)
 
-    run_scm_training(args)
+    # run_scm_training(args)
     run_explanation_generation()
 
     ## Learn causal graph ##

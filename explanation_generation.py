@@ -60,10 +60,14 @@ class ExplanationGenerator():
         # Get the causal chains with the head node of the most important feature - 
         # we do this in order of importance in case the most important feature has
         # no detected causal chains (although this is unlikely)
-        importance_vector = self._estimate_q_function_feature_importance(
-            state, pertubation)
-        
-        features_by_importance = np.flip(np.argsort(importance_vector))
+        if self.scm.env.name == "starcraft":
+            features_by_importance = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        else:
+            importance_vector = self._estimate_q_function_feature_importance(
+                state, pertubation)
+            
+            features_by_importance = np.flip(np.argsort(importance_vector))
+
         causal_chains = []
         most_important_feature = 0
 
@@ -182,12 +186,16 @@ class ExplanationGenerator():
         predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint, ignore_action=True)
         print(f'predicted_counter_nodes {predicted_counter_nodes}')
 
-        importance_vector = self._estimate_q_function_feature_importance(state, pertubation=pertubation)  
-        features_by_importance = np.flip(np.argsort(importance_vector))
-        print(f'features ordered by importance {features_by_importance}')
+        if self.scm.env.name == "starcraft":
+            features_by_importance = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+        else:
+            importance_vector = self._estimate_q_function_feature_importance(state, pertubation=pertubation)  
+            features_by_importance = np.flip(np.argsort(importance_vector))
+            print(f'features ordered by importance {features_by_importance}')
 
         causal_chains = []
         most_important_feature = 0
+        print(multistep_causal_chains)
 
         for feature in features_by_importance:  
             # Get all causal chains with this feature as head - we want to use
@@ -313,7 +321,7 @@ class ExplanationGenerator():
 
                 while len(q) > 0:
                     curr_chain = q.pop()
-                    print(f"curr chain {curr_chain}")
+                    # print(f"curr chain {curr_chain}")
 
                     # Find all chains that begin with the last node
                     poss_next_chains = [

@@ -120,7 +120,6 @@ class StructuralCausalModel:
             predecessors = self.causal_graph.predecessors(node)
 
             x_data = test_data[list(predecessors)]
-            print(f"node {node} preds {predecessors} x data {x_data}")
             pred = self.structural_equations[node]['function'].predict(
                 input_fn=self.get_predict_fn(
                     x_data, num_epochs=1, n_batch=128, shuffle=False))
@@ -164,7 +163,6 @@ class StructuralCausalModel:
             print(str(agent_step) + "/" + str(len(data_set)))
 
             datapoint = data_set[agent_step]
-            print(f'datapoint {datapoint}')
             action = datapoint[self.env.state_space]
 
             why_explanations[(agent_step,
@@ -212,7 +210,6 @@ class StructuralCausalModel:
 
         # Treat sink nodes as goal nodes
         sink_nodes = self.get_sink_nodes(causal_graph)
-        print(f'sink nodes: {sink_nodes}')
 
         # Edges of action, doesn-t apply to this scm
         # actual_action_edge_list = self.get_edges_of_actions(
@@ -269,8 +266,8 @@ class StructuralCausalModel:
                 optimal_transition[node] = predicted_nodes[node]
 
         # This should be similar to the actual next sate
-        print(f'noop_transition = {noop_transition}')
-        print(f'optimal state = {optimal_transition}')
+        # print(f'noop_transition = {noop_transition}')
+        # print(f'optimal state = {optimal_transition}')
 
         for causal_chain in causal_chains:
             min_tuple_optimal_transition = self.get_minimally_complete_tuples(
