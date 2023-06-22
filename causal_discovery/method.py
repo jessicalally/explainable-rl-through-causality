@@ -17,7 +17,6 @@ class Method(object):
             with_assumptions=True):
         raise NotImplementedError
 
-    # TODO: add vcn as an option here
     @staticmethod
     def get_method(method):
         if method == 'pc':
@@ -48,14 +47,7 @@ class Method(object):
         processed_causal_matrix = causal_matrix
 
         for (i, j) in forbidden_edges:
-            # Delete
             processed_causal_matrix[i][j] = 0
-
-            # Flip
-            # if processed_causal_matrix[i][j] == 1:
-            #     # Flip forbidden edges, since these are backwards in time
-            #     processed_causal_matrix[i][j] = 0
-            #     processed_causal_matrix[j][i] = 1
 
         for (i, j) in required_edges:
             processed_causal_matrix[i][j] = 1
@@ -65,16 +57,16 @@ class Method(object):
 
 class PC(Method):
     def generate_causal_matrix(
-        self,
-        data,
-        env,
-        forbidden_edges,
-        required_edges,
-        threshold=0.3,
-        with_assumptions=True,
-        plot_dag=False,
-        print_dag_probabilities=False,
-        restructure=False):
+            self,
+            data,
+            env,
+            forbidden_edges,
+            required_edges,
+            threshold=0.3,
+            with_assumptions=True,
+            plot_dag=False,
+            print_dag_probabilities=False,
+            restructure=False):
 
         priori = PrioriKnowledge(data.shape[1])
 
@@ -98,24 +90,16 @@ class PC(Method):
 
 class RL(Method):
     def generate_causal_matrix(
-        self,
-        data,
-        env,
-        forbidden_edges,
-        required_edges,
-        threshold=0.3,
-        with_assumptions=True,
-        plot_dag=False,
-        print_dag_probabilities=False,
-        restructure=False):
-
-        # rl = castle.algorithms.RL(
-        #     nb_epoch=1500,
-        #     input_dimension=32,
-        #     hidden_dim=32,
-        #     num_heads=8,
-        #     num_stacks=4
-        # )
+            self,
+            data,
+            env,
+            forbidden_edges,
+            required_edges,
+            threshold=0.3,
+            with_assumptions=True,
+            plot_dag=False,
+            print_dag_probabilities=False,
+            restructure=False):
 
         rl = castle.algorithms.RL(
             nb_epoch=2000
@@ -191,36 +175,33 @@ class VarLiNGAM(Method):
             print_dag_probabilities=False,
             restructure=False):
 
-        # Reshape data as VarLiNGAM currently requires a different CSV structure
-        # than the other algorithms (rows of state + action)
         model = VARLiNGAM()
         model.fit(data)
 
+        # Restructuring is required for the transition causal graph, but not the
+        # reward causal graph
         if restructure:
             causal_matrix = np.vstack(
                 [
                     np.hstack(
                         [model.adjacency_matrices_[0].T,
-                        model.adjacency_matrices_[1].T]
+                         model.adjacency_matrices_[1].T]
                     ),
 
                     np.hstack(
                         [np.zeros((data.shape[1], data.shape[1])),
-                        model.adjacency_matrices_[0].T]
+                         model.adjacency_matrices_[0].T]
                     )
                 ]
             )
 
-            # TODO: explain this
+            # Remove the last row and column, as these represent the action
+            # at the next time step, which we do not include in the causal graph
             causal_matrix = np.delete(
                 causal_matrix, len(causal_matrix) - 1, axis=0)
             causal_matrix = np.delete(
                 causal_matrix, len(causal_matrix) - 1, axis=1)
-            # causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=0)
-            # causal_matrix = np.delete(causal_matrix, env.state_space + 1, axis=1)
-
         else:
-            # TODO: not sure what this should be
             print(model.adjacency_matrices_[0].T)
             causal_matrix = model.adjacency_matrices_[0].T
 
@@ -245,6 +226,7 @@ class VarLiNGAM(Method):
 
         return causal_matrix
 
+
 class DirectLiNGAM(Method):
     def generate_causal_matrix(
             self,
@@ -264,6 +246,6 @@ class DirectLiNGAM(Method):
         causal_matrix = model.adjacency_matrix_
         causal_matrix = self.threshold(causal_matrix, threshold)
         causal_matrix = self.post_process(
-                causal_matrix, forbidden_edges, required_edges)
+            causal_matrix, forbidden_edges, required_edges)
 
         return causal_matrix

@@ -2,8 +2,6 @@ import networkx as nx
 import numpy as np
 import gym
 
-# TODO: separate environments into separate files
-
 
 class Environment(object):
     name = None
@@ -11,11 +9,7 @@ class Environment(object):
     action_space = None
     env = None
     true_dag = None
-    action_node = 4
-    reward_node = 9
 
-    # TODO: currently needed for VarLiNGAM DAG plots, find a better way to
-    # generalise for all methods
     labels = None
     features = None
     actions = None
@@ -42,8 +36,6 @@ class Environment(object):
             raise ValueError(f'{env} is an unsupported environment')
 
 ##### Cartpole #####
-
-
 class Cartpole(Environment):
     name = "cartpole"
     state_space = 4
@@ -63,11 +55,11 @@ class Cartpole(Environment):
     ])
 
     reward_true_dag = np.array([
-        [0, 0, 0, 0, 1], # 0 = pos
-        [0, 0, 0, 0, 0], # 1 = velocity
-        [0, 0, 0, 0, 1], # 2 = pole angle
-        [0, 0, 0, 0, 0], # 3 = angular velocity
-        [0, 0, 0, 0, 0], # 4 = reward
+        [0, 0, 0, 0, 1],  # 0 = pos
+        [0, 0, 0, 0, 0],  # 1 = velocity
+        [0, 0, 0, 0, 1],  # 2 = pole angle
+        [0, 0, 0, 0, 0],  # 3 = angular velocity
+        [0, 0, 0, 0, 0],  # 4 = reward
     ])
 
     action_node = 4
@@ -133,7 +125,8 @@ class Cartpole(Environment):
         (8, 4),
     ]
 
-    # We only want the edges from state variables to the reward, so forbid all other edges
+    # We only want the edges from state variables to the reward, so forbid all
+    # other edges
     forbidden_edges_reward = [
         (4, 0),
         (4, 1),
@@ -156,7 +149,6 @@ class Cartpole(Environment):
 
 
 ##### Lunar Lander #####
-
 class LunarLander(Environment):
     name = "lunarlander"
     state_space = 8
@@ -193,12 +185,6 @@ class LunarLander(Environment):
         16: 'right leg in contact with ground',
     }
 
-    # Rewar equation taken from code
-    # reward = -100 * np.sqrt(state[0] * state[0] + state[1] * state[1])
-    # - 100 * np.sqrt(state[2] * state[2] + state[3] * state[3])
-    # - 100 * abs(state[4])
-    # + 10 * state[6]
-    # + 10 * state[7]
     action_node = 8
 
     true_dag = np.array([
@@ -222,15 +208,15 @@ class LunarLander(Environment):
     ])
 
     reward_true_dag = np.array([
-        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 0 = x coord t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 1 = y coord t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 2 = x velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 3 = y velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 4 = angle t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0], # 5 = angular velocity t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 6 = left leg t
-        [0, 0, 0, 0, 0, 0, 0, 0, 1], # 7 = right leg t
-        [0, 0, 0, 0, 0, 0, 0, 0, 0], # 8 = reward
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],  # 0 = x coord t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],  # 1 = y coord t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],  # 2 = x velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],  # 3 = y velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],  # 4 = angle t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 5 = angular velocity t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],  # 6 = left leg t
+        [0, 0, 0, 0, 0, 0, 0, 0, 1],  # 7 = right leg t
+        [0, 0, 0, 0, 0, 0, 0, 0, 0],  # 8 = reward
     ])
 
     labels = [
@@ -252,17 +238,17 @@ class LunarLander(Environment):
         'left-leg(t-1)',
         'right-leg(t-1)',
         'action(t-1)']
-    
+
     forbidden_edges_reward = [
-       (8, 0),
-       (8, 1),
-       (8, 2),
-       (8, 3),
-       (8, 4),
-       (8, 5),
-       (8, 6),
-       (8, 7),
-       (8, 8),
+        (8, 0),
+        (8, 1),
+        (8, 2),
+        (8, 3),
+        (8, 4),
+        (8, 5),
+        (8, 6),
+        (8, 7),
+        (8, 8),
     ]
 
     # Assumption: we cannot have any causal relationships that go backwards in
@@ -379,13 +365,6 @@ class LunarLander(Environment):
 
 
 #### Mountain Car ####
-
-# Transition dynamics for Mountain Car
-# (https://gymnasium.farama.org/environments/classic_control/mountain_car/)
-
-# velocityt+1 = velocityt + (action - 1) * force - cos(3 * positiont) * gravity
-# positiont+1 = positiont + velocityt+1
-
 class MountainCar(Environment):
     name = "mountaincar"
     state_space = 2
@@ -401,9 +380,9 @@ class MountainCar(Environment):
     ])
 
     reward_true_dag = np.array([
-        [0, 0, 1], # 0 = pos t
-        [0, 0, 0], # 1 = velocity t
-        [0, 0, 0], # 2 = reward
+        [0, 0, 1],  # 0 = pos t
+        [0, 0, 0],  # 1 = velocity t
+        [0, 0, 0],  # 2 = reward
     ])
 
     labels = [
@@ -466,7 +445,6 @@ class MountainCar(Environment):
 
 
 #### Taxi ####
-
 class Taxi(Environment):
     name = "taxi"
     state_space = 4
@@ -486,13 +464,12 @@ class Taxi(Environment):
     ])
 
     reward_true_dag = np.array([
-        [0, 0, 0, 0, 0], # 0 = taxi row t
-        [0, 0, 0, 0, 0], # 1 = taxi column t
-        [0, 0, 0, 0, 1], # 2 = passenger location t
-        [0, 0, 0, 0, 1], # 3 = destination t
-        [0, 0, 0, 0, 0], # 4 = reward t
+        [0, 0, 0, 0, 0],  # 0 = taxi row t
+        [0, 0, 0, 0, 0],  # 1 = taxi column t
+        [0, 0, 0, 0, 1],  # 2 = passenger location t
+        [0, 0, 0, 0, 1],  # 3 = destination t
+        [0, 0, 0, 0, 0],  # 4 = reward t
     ])
-
 
     labels = [
         'row(t)',
@@ -590,13 +567,14 @@ class Taxi(Environment):
 
 
 #### Starcraft ####
-
 class Starcraft(Environment):
     name = "starcraft"
     state_space = 9
     action_node = 9
-    action_space = 5 # includes a do-nothing action
-    env = None  # TODO
+    action_space = 5
+    # StarCraft data is generated separately, using Madumal's codebase
+    # [https://github.com/prashanm/StarCraft-II-causal-explanations]
+    env = None
 
     true_dag = np.array([
         [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0],  # 0 = worker supply number t
@@ -685,7 +663,6 @@ class Starcraft(Environment):
         17: 'destroyed units',
         18: 'destroyed buildings',
     }
-
 
     forbidden_edges_reward = [
         (9, 0),

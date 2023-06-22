@@ -55,6 +55,7 @@ def get_data(path, num_datapoints=30000):
 
     return data
 
+
 def display_graphs(causal_matrix, true_dag, args, with_assumptions):
     save_path = f'{args.save_path}/graphs/{args.env}_{args.method}_assumptions_{with_assumptions}'
     GraphDAG(causal_matrix, true_dag, show=True, save_name=save_path)
@@ -76,9 +77,6 @@ def save_metrics(metrics, args, with_assumptions):
 
 
 def main(args):
-    # Rows of state + action + next state
-    # data = get_data(args.path_to_dataset, num_datapoints=args.num_points)
-
     env = Environment.get_env(args.env)
     method = Method.get_method(args.method)
 
@@ -90,12 +88,6 @@ def main(args):
 
     with open(reward_dataset_path, 'rb') as dataset_file:
         reward_causal_discovery_dataset = pickle.load(dataset_file)
-
-    # causal_matrix_no_assumptions = method.generate_causal_matrix(
-    #     data,
-    #     env,
-    #     with_assumptions=False
-    # )
 
     causal_matrix_with_assumptions = method.generate_causal_matrix(
         causal_discovery_dataset,
@@ -113,13 +105,6 @@ def main(args):
         with_assumptions=True
     )
 
-    # display_graphs(
-    #     causal_matrix_no_assumptions,
-    #     env.true_dag,
-    #     args,
-    #     False
-    # )
-
     display_graphs(
         causal_matrix_with_assumptions,
         env.true_dag,
@@ -134,14 +119,9 @@ def main(args):
         True
     )
 
-
-    # evaluate(causal_matrix_no_assumptions, env.true_dag, args, False)
     evaluate(causal_matrix_with_assumptions, env.true_dag, args, True)
-    evaluate(reward_causal_matrix_with_assumptions, env.reward_true_dag, args, True)
-
-    # save_path = f'{args.save_path}/causal_matrices/{args.env}_{args.method}_assumptions_'
-    # # np.save(save_path + 'False', causal_matrix_no_assumptions)
-    # np.save(save_path + 'True', causal_matrix_with_assumptions)
+    evaluate(reward_causal_matrix_with_assumptions,
+             env.reward_true_dag, args, True)
 
 
 if __name__ == '__main__':

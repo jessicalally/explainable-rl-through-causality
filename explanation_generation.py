@@ -27,11 +27,12 @@ class ExplanationGenerator():
         action_node = self.env.action_node
 
         # Generate the causal chains for a single timestep
-        head_nodes = [node for node in self.scm.causal_graph.predecessors(action_node)]
+        head_nodes = [
+            node for node in self.scm.causal_graph.predecessors(action_node)]
 
         one_step_causal_chains = self._get_one_step_causal_chains(
             head_nodes, sink_nodes, self.scm.causal_graph)
-        
+
         multistep_causal_chains = self._generate_multistep_causal_chains(
             one_step_causal_chains)
 
@@ -44,7 +45,7 @@ class ExplanationGenerator():
         datapoint[self.scm.env.action_node] = action
         predicted_nodes = self.scm.predict_from_scm(datapoint)
 
-        # Get the causal chains with the head node of the most important feature - 
+        # Get the causal chains with the head node of the most important feature -
         # we do this in order of importance in case the most important feature has
         # no detected causal chains (although this is unlikely)
         if self.scm.env.name == "starcraft":
@@ -55,23 +56,25 @@ class ExplanationGenerator():
         else:
             importance_vector = self._estimate_q_function_feature_importance(
                 state, pertubation)
-            
+
             features_by_importance = np.flip(np.argsort(importance_vector))
 
         causal_chains = []
         most_important_feature = 0
 
-        for feature in features_by_importance:  
+        for feature in features_by_importance:
             # Get all causal chains with this feature as head - we want to use
             # these as the basis for explanations
             feature_causal_chains = [
                 chain for chain in multistep_causal_chains if chain[0][0] == feature]
-                        
+
             if len(feature_causal_chains) > 0:
                 most_important_feature = feature
                 feature_causal_chains.sort()
                 # removes duplicates
-                causal_chains = list(chain for chain, _ in itertools.groupby(feature_causal_chains))
+                causal_chains = list(
+                    chain for chain,
+                    _ in itertools.groupby(feature_causal_chains))
                 break
 
         if len(causal_chains) == 0:
@@ -110,11 +113,14 @@ class ExplanationGenerator():
                     if j == 0:
                         continue
                     if i == len(causal_chain) - 1 and j == len(step) - 1:
-                        # This must be the last node of the step, and the last step in the chain
-                        explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
+                        # This must be the last node of the step, and the last
+                        # step in the chain
+                        explanation += (
+                            f'{self.env.features[node]} influences the reward.'.capitalize())
                         break
                     if j == 1 and i == 0:
-                        explanation += (f'\n {self.env.features[node]} influences '.capitalize())
+                        explanation += (
+                            f'\n {self.env.features[node]} influences '.capitalize())
                     else:
                         explanation += f'{self.env.features[node]}, which influences '
 
@@ -135,7 +141,12 @@ class ExplanationGenerator():
     # state [just datapoints at time t]
     # actual action chosen at time t
     # counterfactual action to be taken at time t
-    def generate_why_not_explanation(self, state, action, counter_action, pertubation):
+    def generate_why_not_explanation(
+            self,
+            state,
+            action,
+            counter_action,
+            pertubation):
         explanation = f'Because it is more desirable to do {self.env.actions[int(action)]}.\n'
 
         # All nodes with out-degree=0
@@ -143,7 +154,8 @@ class ExplanationGenerator():
         action_node = self.env.action_node
 
         # Generate the causal chains for a single timestep
-        head_nodes = [node for node in self.scm.causal_graph.predecessors(action_node)]
+        head_nodes = [
+            node for node in self.scm.causal_graph.predecessors(action_node)]
         one_step_causal_chains = self._get_one_step_causal_chains(
             head_nodes, sink_nodes, self.scm.causal_graph)
 
@@ -166,29 +178,33 @@ class ExplanationGenerator():
             counter_datapoint[idx] = val
 
         counter_datapoint[self.env.action_node] = counter_action
-        predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint, ignore_action=True)
+        predicted_counter_nodes = self.scm.predict_from_scm(
+            counter_datapoint, ignore_action=True)
 
         if self.scm.env.name == "starcraft":
             features_by_importance = [8, 7, 6, 5, 4, 3, 2, 1]
         else:
-            importance_vector = self._estimate_q_function_feature_importance(state, pertubation=pertubation)  
+            importance_vector = self._estimate_q_function_feature_importance(
+                state, pertubation=pertubation)
             features_by_importance = np.flip(np.argsort(importance_vector))
 
         causal_chains = []
         most_important_feature = 0
         print(multistep_causal_chains)
 
-        for feature in features_by_importance:  
+        for feature in features_by_importance:
             # Get all causal chains with this feature as head - we want to use
             # these as explanation
             feature_causal_chains = [
                 chain for chain in multistep_causal_chains if chain[0][0] == feature]
-                        
+
             if len(feature_causal_chains) > 0:
                 most_important_feature = feature
                 feature_causal_chains.sort()
                 # removes duplicates
-                causal_chains = list(chain for chain, _ in itertools.groupby(feature_causal_chains))
+                causal_chains = list(
+                    chain for chain,
+                    _ in itertools.groupby(feature_causal_chains))
                 break
 
         if len(causal_chains) == 0:
@@ -226,24 +242,25 @@ class ExplanationGenerator():
                     if j == 0:
                         continue
                     if i == len(causal_chain) - 1 and j == len(step) - 1:
-                        # This must be the last node of the step, and the last step in the chain
-                        explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
+                        # This must be the last node of the step, and the last
+                        # step in the chain
+                        explanation += (
+                            f'{self.env.features[node]} influences the reward.'.capitalize())
                         break
                     if j == 1 and i == 0:
-                        explanation += (f'\n {self.env.features[node]} influences '.capitalize())
+                        explanation += (
+                            f'\n {self.env.features[node]} influences '.capitalize())
                     else:
                         explanation += f'{self.env.features[node]}, which influences '
 
-
         pd.DataFrame.from_dict(
-                data={most_important_feature: explanation},
-                orient='index').to_csv(
-                f'output/explanations/why_not_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
+            data={most_important_feature: explanation},
+            orient='index').to_csv(
+            f'output/explanations/why_not_explanations_{self.scm.env.name}_{self.rl_agent.name}.csv',
                 mode='a',
                 header=False)
-        
+
         return explanation
-    
 
     def _get_sink_nodes(self, causal_graph):
         return list(
@@ -273,20 +290,19 @@ class ExplanationGenerator():
                 # nodes have a causal effect on future nodes?
                 all_chains_between_nodes = [
                     chain for chain in all_chains_between_nodes if action_node not in chain]
-                
+
                 # Take all chains where the successor node is in the future
                 all_chains_between_nodes = [
-                    chain for chain in all_chains_between_nodes if chain[1] > self.env.action_node
-                ]
-                
+                    chain for chain in all_chains_between_nodes if chain[1] > self.env.action_node]
+
                 all_causal_chains.extend(all_chains_between_nodes)
 
         return all_causal_chains
 
     def _generate_multistep_causal_chains(self, one_step_causal_chains):
         multi_step_causal_chains = []
-        
-        for chain in one_step_causal_chains: 
+
+        for chain in one_step_causal_chains:
             subchains = self._get_subchains_that_influence_reward(chain)
             for subchain in subchains:
                 multi_step_causal_chains.append([subchain])
@@ -301,7 +317,9 @@ class ExplanationGenerator():
                     poss_next_chains = [
                         next_chain for next_chain in one_step_causal_chains
                         if next_chain[0] == chain[-1] % (self.scm.env.state_space + 1)
-                        and next_chain not in curr_chain # prevents cycles - we don't want to duplicate chains since this information is already given to the user
+                        # prevents cycles - we don't want to duplicate chains
+                        # since this information is already given to the user
+                        and next_chain not in curr_chain
                     ]
 
                     # If there are no possible unused chains then this chain will
@@ -310,7 +328,8 @@ class ExplanationGenerator():
                         new_chain = curr_chain
                         new_chain.append(poss_next_chain)
 
-                        subchains = self._get_subchains_that_influence_reward(chain)
+                        subchains = self._get_subchains_that_influence_reward(
+                            chain)
                         for subchain in subchains:
                             multi_step_causal_chains.append([subchain])
 
@@ -318,18 +337,19 @@ class ExplanationGenerator():
                             q.append(new_chain)
 
         return multi_step_causal_chains
-    
+
     def _get_subchains_that_influence_reward(self, chain):
         predecessors_to_reward = [
-            node for node in 
+            node for node in
             self.reward_scm.causal_graph.predecessors(self.env.state_space)
         ]
 
         subchains = []
 
         for i in range(1, len(chain)):
-            if (chain[i] % (self.env.state_space + 1)) in predecessors_to_reward:
-                subchains.append(chain[:i+1])
+            if (chain[i] % (self.env.state_space + 1)
+                ) in predecessors_to_reward:
+                subchains.append(chain[:i + 1])
 
         return subchains
 
@@ -368,4 +388,3 @@ class ExplanationGenerator():
         text += ')'
 
         return text
-
