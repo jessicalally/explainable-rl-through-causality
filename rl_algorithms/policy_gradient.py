@@ -11,11 +11,12 @@ import copy
 # [Explainable Reinforcement Learning Through a Causal Lens]
 # https://arxiv.org/abs/1905.10958
 
+# Adapted from [https://github.com/bentrevett/pytorch-rl/tree/master]
 
 class PolicyGradient(RLAgent):
     name = "pg"
 
-    class MLP(nn.Module):
+    class Model(nn.Module):
         def __init__(self, input_dim, hidden_dim, output_dim, dropout=0.5):
             super().__init__()
 
@@ -42,7 +43,7 @@ class PolicyGradient(RLAgent):
         self.test_env = copy.deepcopy(self.env)
         self.action_space = environment.action_space
         self.state_space = environment.state_space
-        self.policy = self.MLP(
+        self.policy = self.Model(
             self.env.observation_space.shape[0],
             128,
             self.env.action_space.n)
@@ -139,14 +140,14 @@ class PolicyGradient(RLAgent):
                 rewards.append(reward)
 
                 if terminated:
-                    # Hack for solving Cartpole
+                    # Cart Pole rewards must be adjusted so that they are zero
+                    # on the failure state, as opposed to the next state
                     reward_test_data.append(
                         np.concatenate((next_state, np.array(0)), axis=None)
                     )
                 else:
-                    reward_test_data.append(
-                        np.concatenate((next_state, np.array(reward)), axis=None)
-                        )
+                    reward_test_data.append(np.concatenate(
+                        (next_state, np.array(reward)), axis=None))
 
                 transition_test_data.append(
                     np.concatenate(
@@ -228,9 +229,8 @@ class PolicyGradient(RLAgent):
                         np.concatenate((next_state, np.array(0)), axis=None)
                     )
                 else:
-                    reward_test_data.append(
-                        np.concatenate((next_state, np.array(reward)), axis=None)
-                    )
+                    reward_test_data.append(np.concatenate(
+                        (next_state, np.array(reward)), axis=None))
 
                 transition_test_data.append(
                     np.concatenate(
@@ -325,7 +325,6 @@ class PolicyGradient(RLAgent):
         return np.array(scm_dataset)
 
     def get_q_func(self):
-        # TODO: can we use the action probabilities as an approximation?
         pass
 
     def get_optimal_action(self, state):
