@@ -61,7 +61,7 @@ class ExplanationGenerator():
         # we do this in order of importance in case the most important feature has
         # no detected causal chains (although this is unlikely)
         if self.scm.env.name == "starcraft":
-            features_by_importance = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+            features_by_importance = [8, 7, 6, 5, 4, 3, 2, 1]
         else:
             importance_vector = self._estimate_q_function_feature_importance(
                 state, pertubation)
@@ -187,7 +187,7 @@ class ExplanationGenerator():
         print(f'predicted_counter_nodes {predicted_counter_nodes}')
 
         if self.scm.env.name == "starcraft":
-            features_by_importance = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+            features_by_importance = [8, 7, 6, 5, 4, 3, 2, 1]
         else:
             importance_vector = self._estimate_q_function_feature_importance(state, pertubation=pertubation)  
             features_by_importance = np.flip(np.argsort(importance_vector))
