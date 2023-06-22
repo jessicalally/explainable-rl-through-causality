@@ -22,16 +22,7 @@ class ExplanationGenerator():
     def generate_why_explanation(self, state, action, pertubation):
         explanation = f'{self.env.actions[int(action)]}.\n'
 
-        # These are all the nodes that influence the action decision - which is right because we want
-        # to measure their feature importance in terms of choosing the action
-        # But probably this should really all nodes of indegree=0 which are connected to the action
-        # (since a node can affect a node that impacts the action decision)
-        # Ahh but we've made an assumption that all nodes affect the action decision :O
-        # So we want the predecessors with indegree=0?
-        # Nah we want all the causal chains, its just that some of these start
-        # at nodes with indegree/=0 but that's ok
-
-        # These are all the nodes that have out-degree=0
+        # All nodes with out-degree=0
         sink_nodes = self._get_sink_nodes(self.scm.causal_graph)
         action_node = self.env.action_node
 
@@ -44,8 +35,6 @@ class ExplanationGenerator():
         multistep_causal_chains = self._generate_multistep_causal_chains(
             one_step_causal_chains)
 
-        print(f"STATE {state} ACTION {action}")
-
         # Predict the values of all nodes using the trained structural
         # equations
         datapoint = np.zeros((self.scm.env.state_space * 2) + 1)
@@ -53,14 +42,15 @@ class ExplanationGenerator():
             datapoint[idx] = val
 
         datapoint[self.scm.env.action_node] = action
-        print(f"DATAPOINT {datapoint}")
         predicted_nodes = self.scm.predict_from_scm(datapoint)
-        print(f'PREDICTED NODES {predicted_nodes}')
 
         # Get the causal chains with the head node of the most important feature - 
         # we do this in order of importance in case the most important feature has
         # no detected causal chains (although this is unlikely)
         if self.scm.env.name == "starcraft":
+            # The StarCraft A2C algorithm does not have easy access to the Q-
+            # value function, so we use this as a placeholder, but this should
+            # be replaced with another A2C algorithm in the future
             features_by_importance = [8, 7, 6, 5, 4, 3, 2, 1]
         else:
             importance_vector = self._estimate_q_function_feature_importance(
@@ -73,7 +63,7 @@ class ExplanationGenerator():
 
         for feature in features_by_importance:  
             # Get all causal chains with this feature as head - we want to use
-            # these as explanation
+            # these as the basis for explanations
             feature_causal_chains = [
                 chain for chain in multistep_causal_chains if chain[0][0] == feature]
                         
@@ -85,14 +75,13 @@ class ExplanationGenerator():
                 break
 
         if len(causal_chains) == 0:
-            return "Error: no appropiate causal chains found"
+            return "Error: no appropriate causal chains found"
 
         # Get all nodes that are immediately affected by the current action
         imm_nodes = {chain[0][1] for chain in causal_chains}
 
         # Get diff between current node value and predicted node value for
         # the next node in the causal chain
-
         for idx, imm_node in enumerate(imm_nodes):
             curr_node_value = state[imm_node - (self.scm.env.state_space + 1)]
             predicted_node_value = predicted_nodes[imm_node]
@@ -120,7 +109,6 @@ class ExplanationGenerator():
                     # Always skip j == 0
                     if j == 0:
                         continue
-                    # TODO: it may be easier to change every node of the same feature to the same value at some point
                     if i == len(causal_chain) - 1 and j == len(step) - 1:
                         # This must be the last node of the step, and the last step in the chain
                         explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
@@ -147,11 +135,10 @@ class ExplanationGenerator():
     # state [just datapoints at time t]
     # actual action chosen at time t
     # counterfactual action to be taken at time t
-
     def generate_why_not_explanation(self, state, action, counter_action, pertubation):
         explanation = f'Because it is more desirable to do {self.env.actions[int(action)]}.\n'
 
-        # These are all the nodes that have out-degree=0
+        # All nodes with out-degree=0
         sink_nodes = self._get_sink_nodes(self.scm.causal_graph)
         action_node = self.env.action_node
 
@@ -166,14 +153,11 @@ class ExplanationGenerator():
         # Predict the values of all nodes using the trained structural
         # equations
         datapoint = np.zeros((self.env.state_space * 2) + 1)
-        print(f"STATE {state} ACTION {action} COUNTER {counter_action}")
         for idx, val in enumerate(state):
             datapoint[idx] = val
 
         datapoint[self.env.action_node] = action
-        print(f"DATAPOINT {datapoint}")
         predicted_nodes = self.scm.predict_from_scm(datapoint)
-        print(f'predicted nodes {predicted_nodes}')
 
         # Predict the values of all nodes with the counterfactual action using
         # the trained SCM
@@ -182,16 +166,13 @@ class ExplanationGenerator():
             counter_datapoint[idx] = val
 
         counter_datapoint[self.env.action_node] = counter_action
-        print(f"COUNTER DATAPOINT {counter_datapoint}")
         predicted_counter_nodes = self.scm.predict_from_scm(counter_datapoint, ignore_action=True)
-        print(f'predicted_counter_nodes {predicted_counter_nodes}')
 
         if self.scm.env.name == "starcraft":
             features_by_importance = [8, 7, 6, 5, 4, 3, 2, 1]
         else:
             importance_vector = self._estimate_q_function_feature_importance(state, pertubation=pertubation)  
             features_by_importance = np.flip(np.argsort(importance_vector))
-            print(f'features ordered by importance {features_by_importance}')
 
         causal_chains = []
         most_important_feature = 0
@@ -211,14 +192,13 @@ class ExplanationGenerator():
                 break
 
         if len(causal_chains) == 0:
-            return "Error: no appropiate causal chains found"
+            return "Error: no appropriate causal chains found"
 
         # Get all nodes that are immediately affected by the current action
         imm_nodes = {chain[0][1] for chain in causal_chains}
 
         # Get diff between current node value and predicted node value for
         # the next node in the causal chain
-
         for idx, imm_node in enumerate(imm_nodes):
             curr_node_value = state[imm_node - (self.scm.env.state_space + 1)]
             predicted_node_value = predicted_nodes[imm_node][0]
@@ -234,21 +214,17 @@ class ExplanationGenerator():
 
             if idx == 0:
                 explanation += f'In order to {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.5f} to {predicted_node_value:3.5f}) (counterfactual {predicted_counter_node_value:3.5f}) '
-                # TODO: add the rather than case?
             else:
                 explanation += f'\n and {direction} the value of {self.env.features[imm_node]} (from {curr_node_value:3.5f} to {predicted_node_value:3.5f}) (counterfactual {predicted_counter_node_value:3.5f}) '
-                # TODO: add the rather than case?
 
         explanation += f'in the next time step from the current state \n{self._convert_state_to_text(state)}.\n Because: '
 
         for causal_chain in causal_chains:
             for i, step in enumerate(causal_chain):
-                # TODO: replace with idx to reward node
                 for j, node in enumerate(step):
                     # Always skip j == 0
                     if j == 0:
                         continue
-                    # TODO: it may be easier to change every node of the same feature to the same value at some point
                     if i == len(causal_chain) - 1 and j == len(step) - 1:
                         # This must be the last node of the step, and the last step in the chain
                         explanation += (f'{self.env.features[node]} influences the reward.'.capitalize())
@@ -274,7 +250,6 @@ class ExplanationGenerator():
             (node for node, out_degree in causal_graph.out_degree() if out_degree == 0))
 
     # Generates all the causal chains for a single timestep
-
     def _get_one_step_causal_chains(
             self,
             head_nodes,
@@ -321,7 +296,6 @@ class ExplanationGenerator():
 
                 while len(q) > 0:
                     curr_chain = q.pop()
-                    # print(f"curr chain {curr_chain}")
 
                     # Find all chains that begin with the last node
                     poss_next_chains = [
@@ -355,12 +329,11 @@ class ExplanationGenerator():
 
         for i in range(1, len(chain)):
             if (chain[i] % (self.env.state_space + 1)) in predecessors_to_reward:
-                subchains.append(chain[:i+1]) # TODO: i or i+1
+                subchains.append(chain[:i+1])
 
         return subchains
 
     def _estimate_q_function_feature_importance(self, state, pertubation):
-        # TODO: we should have a min pertubation in case the state feature = 0.0
         min_pertubation = 0.001
         q_values = self.rl_agent.get_q_values(state)
         action = np.argmax(q_values)
@@ -373,40 +346,15 @@ class ExplanationGenerator():
         for i in range(len(state)):
             pertubated_state = copy.deepcopy(state)
             # Applying a 1% pertubation
-            pertubated_state[i] *= 1.0 + pertubation
-            print(f'PERTUBATED STATE {pertubated_state}')
+            diff = max(
+                (1.0 + pertubation) * pertubated_state[i], min_pertubation
+            )
+            pertubated_state[i] += diff
             updated_q_values = self.rl_agent.get_q_values(pertubated_state)
-            print(f'updated q values {updated_q_values}')
             importance_vector[i] = (
                 abs(updated_q_values[action] - importance_vector[i]) / pertubation)
 
-        print(f"IMPORTANCE VECTOR {importance_vector}")
-
         return importance_vector
-
-    # It is not really possible to estimate the magnitude of the change when
-    # the actions are discrete.
-    # So it is just returning the index of any state variable that changes the
-    # action
-
-    def _estimate_action_feature_importance(self, state, pertubation=0.1):
-        action = self.rl_agent.get_optimal_action(state)
-        importance_vector = np.zeros(state.shape)
-
-        # Apply small pertubation to each state variable, and recalculate the
-        # q_values
-        for i in range(len(state)):
-            pertubated_state = state
-            pertubated_state[i] += pertubation
-            new_action = self.rl_agent.get_optimal_action(pertubated_state)
-
-            importance_vector[i] = 1 if new_action != action else 0
-
-        print(f'action importance vector {importance_vector}')
-
-        # Picks a state variable arbitrarily that affects the chosen action
-        return np.where(importance_vector == 1)
-    
 
     def _convert_state_to_text(self, state):
         text = '('
@@ -420,5 +368,4 @@ class ExplanationGenerator():
         text += ')'
 
         return text
-        
 
