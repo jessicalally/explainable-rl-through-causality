@@ -290,6 +290,15 @@ def run_causal_discovery(args, iter):
     print(causal_discovery_dataset.shape)
     print(reward_causal_discovery_dataset.shape)
 
+    rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}_{iter}.pickle"
+    os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
+
+    dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
+    os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
+
+    reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
+    os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
+
     with open(rl_agent_path, 'wb') as agent_file:
         pickle.dump(rl_agent, agent_file)
 
@@ -310,15 +319,6 @@ def run_causal_discovery(args, iter):
             'starcraft_reward_causal_discovery.csv', delimiter=',')
         reward_causal_discovery_dataset = reward_causal_discovery_dataset[:500000, :]
     else:
-        rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}_{iter}.pickle"
-        os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
-
-        dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
-        os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
-
-        reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
-        os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
-
         with open(dataset_path, 'rb') as dataset_file:
             causal_discovery_dataset = pickle.load(dataset_file)
 
