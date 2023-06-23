@@ -12,62 +12,45 @@ from .rl_agent import RLAgent
 # [Explainable Reinforcement Learning Through a Causal Lens]
 # https://arxiv.org/abs/1905.10958
 
-
 class DDQN(RLAgent):
 
-    class MemoryBuffer(object):
+    class ReplayBuffer(object):
         def __init__(self, max_size):
-            self.memory_size = max_size
-            self.trans_counter = 0  # num of transitions in the memory
-            # this count is required to delay learning
-            # until the buffer is sensibly full
-            self.index = 0         # current pointer in the buffer
-            self.buffer = deque(maxlen=self.memory_size)
-            self.transition = namedtuple(
-                "Transition",
-                field_names=[
-                    "state",
-                    "action",
-                    "reward",
-                    "new_state",
-                    "terminal"])
+            self.max_buffer_size = max_size
+            self.buffer_size = 0
+            self.index = 0
+            self.buffer = deque(maxlen=self.max_buffer_size)
 
-        def save(self, state, action, reward, new_state, terminal):
-            t = self.transition(state, action, reward, new_state, terminal)
-            self.buffer.append(t)
-            self.trans_counter = (self.trans_counter + 1) % self.memory_size
+        def save(self, state, action, reward, next_state, done):
+            self.buffer.append([state, action, reward, next_state, done])
 
-        def random_sample(self, batch_size):
-            # should begin sampling only when sufficiently full
-            assert len(self.buffer) >= batch_size
-            # number of transitions to sample
-            transitions = random.sample(self.buffer, k=batch_size)
-            states = torch.from_numpy(np.vstack(
-                [e.state for e in transitions if e is not None])).float()
-            actions = torch.from_numpy(np.vstack(
-                [e.action for e in transitions if e is not None])).long()
-            rewards = torch.from_numpy(np.vstack(
-                [e.reward for e in transitions if e is not None])).float()
-            new_states = torch.from_numpy(np.vstack(
-                [e.new_state for e in transitions if e is not None])).float()
-            terminals = torch.from_numpy(np.vstack(
-                [e.terminal for e in transitions if e is not None]).astype(np.uint8)).float()
+            if self.buffer_size < self.max_buffer_size:
+                self.buffer_size += 1
 
-            return states, actions, rewards, new_states, terminals
+        def sample_from_buffer(self, batch_size):
+            transitions = np.array(random.sample(self.buffer, k=batch_size))
 
-    class QNN(nn.Module):
+            states = torch.from_numpy(np.vstack(transitions[:, 0])).float()
+            actions = torch.from_numpy(np.vstack(transitions[:, 1])).long()
+            rewards = torch.from_numpy(np.vstack(transitions[:, 2])).float()
+            next_states = torch.from_numpy(np.vstack(transitions[:, 3])).float()
+            dones = torch.from_numpy(np.vstack(transitions[:, 4]).astype(np.uint8)).float()
+
+            return states, actions, rewards, next_states, dones
+
+    class Network(nn.Module):
         def __init__(self, state_space, action_space):
             super().__init__()
-            self.fc1 = nn.Linear(state_space, 128)
-            self.fc2 = nn.Linear(128, 128)
-            self.fc3 = nn.Linear(128, action_space)
+            self.input_layer = nn.Linear(state_space, 128)
+            self.hidden_layer = nn.Linear(128, 128)
+            self.output_layer = nn.Linear(128, action_space)
 
         def forward(self, state):
-            x = self.fc1(state)
+            x = self.input_layer(state)
             x = F.relu(x)
-            x = self.fc2(x)
+            x = self.hidden_layer(x)
             x = F.relu(x)
-            return self.fc3(x)
+            return self.output_layer(x)
 
     def __init__(
             self,
@@ -95,90 +78,71 @@ class DDQN(RLAgent):
         self.lr = lr
         self.min_epsilon = 0.01
         self.buffer_size = 100000
-        self.replay_buffer = self.MemoryBuffer(self.buffer_size)
-        self.replace_q_target = 100
-        self.q_func = self.QNN(self.state_space, self.action_space)
-        self.q_func_target = self.QNN(self.state_space, self.action_space)
-        self.optimizer = optim.Adam(self.q_func.parameters(), lr=self.lr)
+        self.update_network_frequency = 4
+        self.replay_buffer = self.ReplayBuffer(self.buffer_size)
+        self.update_target_network_frequency = 100
+        self.network = self.Network(self.state_space, self.action_space)
+        self.target_network = self.Network(self.state_space, self.action_space)
+        self.optimizer = optim.Adam(self.network.parameters(), lr=self.lr)
 
-    def _save(self, state, action, reward, new_state, done):
-        # self.memory.trans_counter += 1
-        self.replay_buffer.save(state, action, reward, new_state, done)
 
-    def _choose_action(self, state):
-        # state = state[np.newaxis, :]
-        rand = np.random.random()
+    def _choose_action_epsilon_greedy(self, state):
         state = torch.DoubleTensor(state).unsqueeze(0)
-        self.q_func.eval()
-        action_values = self.q_func(state)
-        self.q_func.train()
-        # print(state)
-        if rand > self.epsilon:
-            return np.argmax(action_values.cpu().data.numpy())
+
+        self.network.eval()
+        q_values = self.network(state)
+        self.network.train()
+
+        if np.random.random() > self.epsilon:
+            return np.argmax(q_values.cpu().data.numpy())
         else:
-            # exploring: return a random action
-            return np.random.choice([i for i in range(self.action_space)])
+            return random.randint(0, self.action_space - 1)
 
     def _choose_action_deterministic(self, state):
         state = torch.DoubleTensor(state).unsqueeze(0)
 
-        self.q_func.eval()
-        action_values = self.q_func(state)
+        self.network.eval()
+        action_values = self.network(state)
 
         return np.argmax(action_values.cpu().data.numpy())
-
-    def _reduce_epsilon(self):
-        self.epsilon = self.epsilon * self.epsilon_decay if self.epsilon > \
-            self.min_epsilon else self.min_epsilon
-
-    def _learn(self):
-        if self.replay_buffer.trans_counter < self.batch_size:  # wait before you start learning
-            return
-
-        # 1. Choose a sample from past transitions:
-        states, actions, rewards, new_states, terminals = self.replay_buffer.random_sample(
-            self.batch_size)
-
-        # 2. Update the target values
-        q_next = self.q_func_target(new_states.to(
+    
+    def _get_updated_q_values(self, next_states, rewards, dones):
+        q_values_next_states = self.target_network(next_states.to(
             torch.float64)).detach().max(1)[0].unsqueeze(1)
-        q_updated = rewards + self.gamma * q_next * (1 - terminals)
-        q = self.q_func(states.to(torch.float64)).gather(1, actions)
+        updated_q_values = rewards + self.gamma * q_values_next_states * (1 - dones)
 
-        # 3. Update the main NN
-        loss = F.mse_loss(q, q_updated)
+        return updated_q_values
+    
+    def _update_optimizer(self, q, updated_q_values):
+        loss = F.mse_loss(q, updated_q_values)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
 
-        # 4. Update the target NN (every N-th step)
-        if self.replay_buffer.trans_counter % self.replace_q_target == 0:  # wait before you start learning
-            for target_param, local_param in zip(
-                    self.q_func_target.parameters(), self.q_func.parameters()):
-                target_param.data.copy_(local_param.data)
+    def _update_target_network(self):
+        if self.replay_buffer.buffer_size % self.update_target_network_frequency == 0:
+            self.target_network.load_state_dict(self.network.state_dict())
 
-        # 5. Reduce the exploration rate
-        self._reduce_epsilon()
+    def _learn(self):
+        if self.replay_buffer.buffer_size < self.batch_size:
+            return
 
-    def _save_model(self, path):
-        torch.save(self.q_func.state_dict(), path)
-        torch.save(self.q_func.state_dict(), path + '.target')
+        states, actions, rewards, next_states, dones = self.replay_buffer.sample_from_buffer(
+            self.batch_size)
 
-    def _load_saved_model(self, path):
-        self.q_func = self.QNN(8, 4, 42)
-        self.q_func.load_state_dict(torch.load(path))
-        self.q_func.eval()
+        q = self.network(states.to(torch.float64)).gather(1, actions)
+        updated_q_values = self._get_updated_q_values(next_states, rewards, dones)
+        
+        self._update_optimizer(q, updated_q_values)
+        self._update_target_network()
 
-        self.q_func_target = self.QNN(8, 4, 42)
-        self.q_func_target.load_state_dict(torch.load(path + '.target'))
-        self.q_func_target.eval()
+        self.epsilon = max(self.epsilon * self.epsilon_decay, self.min_epsilon)
 
     def train(self, episodes=4000):
         print('Performing DDQN algorithm...')
         reward_test_data = []
         transition_test_data = []
 
-        LEARN_EVERY = 4
         scores = []
         eps_history = []
 
@@ -190,14 +154,16 @@ class DDQN(RLAgent):
             steps = 0
 
             while not (terminated or truncated):
-                action = self._choose_action(state)
+                action = self._choose_action_epsilon_greedy(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
-                self._save(state, action, reward, next_state, terminated)
+                
+                self.replay_buffer.save(
+                    state, action, reward, next_state, terminated or truncated)
 
                 state = next_state
 
-                if steps > 0 and steps % LEARN_EVERY == 0:
+                if steps > 0 and steps % self.update_network_frequency == 0:
                     self._learn()
 
                 if terminated:
@@ -205,9 +171,8 @@ class DDQN(RLAgent):
                         np.concatenate((next_state, np.array(0)), axis=None)
                     )
                 else:
-                    reward_test_data.append(
-                        np.concatenate((next_state, np.array(reward)), axis=None)
-                        )
+                    reward_test_data.append(np.concatenate(
+                        (next_state, np.array(reward)), axis=None))
 
                 transition_test_data.append(
                     np.concatenate(
@@ -221,7 +186,8 @@ class DDQN(RLAgent):
             scores.append(score)
 
             avg_score = np.mean(scores[max(0, e - 100):(e + 1)])
-            print("episode: {}/{}, score: {}, avg score: {}".format(e, episodes, score, avg_score))
+            print("episode: {}/{}, score: {}, avg score: {}".format(e,
+                  episodes, score, avg_score))
 
             if avg_score > self.reward_threshold:
                 break
@@ -230,8 +196,8 @@ class DDQN(RLAgent):
 
         return np.array(transition_test_data), np.array(reward_test_data)
 
-
-    def generate_test_data_for_causal_discovery(self, num_datapoints, use_sum_rewards=False):
+    def generate_test_data_for_causal_discovery(
+            self, num_datapoints, use_sum_rewards=False):
         transition_test_data = []
         reward_test_data = []
 
@@ -243,7 +209,7 @@ class DDQN(RLAgent):
             state, _ = self.env.reset()
 
             while not (terminated or truncated):
-                action = self._choose_action(state)
+                action = self._choose_action_epsilon_greedy(state)
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
 
@@ -252,69 +218,27 @@ class DDQN(RLAgent):
                         np.concatenate((next_state, np.array(0)), axis=None)
                     )
                 else:
-                    reward_test_data.append(
-                        np.concatenate((next_state, np.array(reward)), axis=None)
-                    )
+                    reward_test_data.append(np.concatenate(
+                        (next_state, np.array(reward)), axis=None))
 
                 transition_test_data.append(
                     np.concatenate(
                         (state, np.array(action), next_state),
                         axis=None))
-            
 
                 state = next_state
 
-            print("num datapoints collected so far: {}".format(len(transition_test_data)))
+            print(
+                "num datapoints collected so far: {}".format(
+                    len(transition_test_data)))
 
         print('Finished generating test data for DDQN Algorithm...')
 
         return np.array(transition_test_data), np.array(reward_test_data)
 
-    # TODO: adjust rewards in same way as above
-    def generate_test_data_for_scm(self, num_datapoints):
-        transition_scm_test_data = []
-        reward_scm_test_data = []
-
-        print('Generating test data for DDQN algorithm...')
-
-        while len(transition_scm_test_data) < num_datapoints:
-            terminated = False
-            truncated = False
-            state, _ = self.env.reset()
-
-            episode_rewards = 0
-
-            while not (terminated or truncated):
-                action = self._choose_action_deterministic(state)
-                next_state, reward, terminated, truncated, _ = self.env.step(
-                    action)
-
-                if terminated:
-                    episode_rewards = 0
-                else:
-                    episode_rewards += reward
-
-                transition_scm_test_data.append(
-                    np.concatenate(
-                        (state, np.array(action), next_state),
-                        axis=None))
-                
-                reward_scm_test_data.append(
-                    np.concatenate((next_state, np.array(episode_rewards)), axis=None)
-                )
-
-                state = next_state
-
-            print("num datapoints collected so far: {}".format(len(transition_scm_test_data)))
-
-        print('Finished generating test data for DDQN Algorithm...')
-
-        return np.array(transition_scm_test_data), np.array(reward_scm_test_data)
-
     # Methods needed for estimating feature importance
-
     def get_q_values(self, state):
-        q_func = self.q_func.eval()
+        q_func = self.network.eval()
 
         state_tensor = torch.DoubleTensor(state).unsqueeze(0)
         q_values = q_func(state_tensor).cpu().data.numpy()[0]
