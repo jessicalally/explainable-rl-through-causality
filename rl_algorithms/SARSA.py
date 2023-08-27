@@ -182,6 +182,60 @@ class SARSA(RLAgent):
         print("Finished generating test data...")
 
         return np.array(test_data), np.array(reward_discovery_test_data)
+    
+    # Generates randoom states
+    def generate_random_test_data(
+            self, num_datapoints, use_sum_rewards=True):
+        test_data = []
+        reward_discovery_test_data = []
+
+        policy = self._generate_deterministic_policy()
+        episode = 0
+
+        print("Generating test data...")
+
+        while len(test_data) < num_datapoints:
+            state, _ = self.env.reset()
+            action_probs = policy(state)
+            action = self._choose_action_from_probs(action_probs)
+            done = False
+            total_reward = 0
+
+            while not done and len(test_data) < num_datapoints:
+                next_state, reward, done, _, _ = self.env.step(action)
+                next_action_probs = policy(next_state)
+                next_action = self._choose_action_from_probs(next_action_probs)
+
+                # Taxi environment requires decoding the state into the separate
+                # state variables
+                taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(state)
+                decoded_state = [taxi_row, taxi_col, pass_loc, dest_idx]
+
+                taxi_row, taxi_col, pass_loc, dest_idx = self.env.decode(
+                    next_state)
+                decoded_next_state = [taxi_row, taxi_col, pass_loc, dest_idx]
+
+                test_data.append(
+                    np.concatenate(
+                        (decoded_state,
+                         np.array(action),
+                         decoded_next_state),
+                        axis=None))
+
+                reward_discovery_test_data.append(np.concatenate(
+                    (decoded_next_state, np.array(reward)), axis=None))
+
+                total_reward += reward
+                action = next_action
+                state = self.env.observation_space.sample()
+
+            print("episode: {}, score: {}".format(episode, total_reward))
+            print("num datapoints collected so far: {}".format(len(test_data)))
+            episode += 1
+
+        print("Finished generating test data...")
+
+        return np.array(test_data), np.array(reward_discovery_test_data)
 
     # Methods needed for estimating feature importance
 

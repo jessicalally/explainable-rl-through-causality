@@ -272,7 +272,7 @@ def run_causal_discovery(args, iter):
     # Generate datasets ##
     if len(causal_discovery_dataset) < 500000:
         num_datapoints = 500000 - len(causal_discovery_dataset)
-        causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
+        causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_random_test_data(num_datapoints, use_sum_rewards=True)
         print(causal_discovery_dataset.shape)
         print(reward_causal_discovery_dataset.shape)
         print(causal_discovery_dataset_extended.shape)
