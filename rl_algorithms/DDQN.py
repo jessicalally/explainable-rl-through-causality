@@ -64,6 +64,7 @@ class DDQN(RLAgent):
         self.name = "ddqn"
 
         # Environment
+        self.environment = environment
         self.env = environment.env
         self.test_env = copy.deepcopy(self.env)
         self.action_space = environment.action_space
@@ -227,6 +228,46 @@ class DDQN(RLAgent):
                         axis=None))
 
                 state = next_state
+
+            print(
+                "num datapoints collected so far: {}".format(
+                    len(transition_test_data)))
+
+        print('Finished generating test data for DDQN Algorithm...')
+
+        return np.array(transition_test_data), np.array(reward_test_data)
+    
+    def generate_random_test_data(
+            self, num_datapoints, use_sum_rewards=False):
+        transition_test_data = []
+        reward_test_data = []
+
+        print('Generating test data for DDQN algorithm...')
+
+        while len(transition_test_data) < num_datapoints:
+            terminated = False
+            truncated = False
+            state, _ = self.env.reset()
+
+            while not (terminated or truncated):
+                action = self._choose_action_epsilon_greedy(state)
+                next_state, reward, terminated, truncated, _ = self.env.step(
+                    action)
+
+                if use_sum_rewards and terminated:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(0)), axis=None)
+                    )
+                else:
+                    reward_test_data.append(np.concatenate(
+                        (next_state, np.array(reward)), axis=None))
+
+                transition_test_data.append(
+                    np.concatenate(
+                        (state, np.array(action), next_state),
+                        axis=None))
+
+                state = self.env.observation_space.sample()
 
             print(
                 "num datapoints collected so far: {}".format(

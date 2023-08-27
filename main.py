@@ -266,7 +266,8 @@ def run_causal_discovery(args, iter):
     rl_agent = get_rl_algorithm(args, env)
 
     # Train agent from scratch or load
-    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
+    _, reward_causal_discovery_dataset = rl_agent.train()
+    causal_discovery_dataset = []
 
     # Generate datasets ##
     if len(causal_discovery_dataset) < 500000:
@@ -399,7 +400,7 @@ def run_scm_training(args):
         rl_agent,
         feature_scm_training_data,
         nx.from_numpy_matrix(env.true_dag, create_using=nx.MultiDiGraph()),
-        uses_true_dag=True
+        uses_true_dag=True,
     )
 
     st = time.process_time()
@@ -454,7 +455,7 @@ def run_scm_training(args):
         rl_agent,
         feature_scm_training_data,
         feature_causal_graph,
-        uses_true_dag=False
+        uses_true_dag=False,
     )
 
     st = time.process_time()
@@ -468,7 +469,7 @@ def run_scm_training(args):
         reward_scm_training_data,
         reward_causal_graph,
         is_reward_scm=True,
-        uses_true_dag=False
+        uses_true_dag=False,
     )
 
     st = time.process_time()
@@ -520,7 +521,7 @@ def scm_evaluation(
         else:
             num_datapoints = 10000
 
-            test_data, reward_test_data = rl_agent.generate_test_data_for_causal_discovery(
+            test_data, reward_test_data = rl_agent.generate_random_test_data(
                 num_datapoints, use_sum_rewards=True)
             print(test_data.shape)
             rnd_indices = np.random.choice(len(test_data), 2500)
@@ -571,7 +572,7 @@ def run_explanation_generation():
             delimiter=',')
     else:
         num_datapoints = 1000
-        test_data, _ = rl_agent.generate_test_data_for_causal_discovery(
+        test_data, _ = rl_agent.generate_random_test_data(
             num_datapoints, use_sum_rewards=True)
 
     print(f'Data: {test_data.shape}')
@@ -609,14 +610,14 @@ def run_explanation_generation():
 
 def main(args):
     # Evaluate causal discovery methods
-    for i in range(0, 3):
+    for i in range(0, 1):
         run_causal_discovery(args, i)
 
     # Run SCM training
     run_scm_training(args)
 
     # Generate explanations
-    run_explanation_generation()
+    # run_explanation_generation()
 
 
 if __name__ == '__main__':
