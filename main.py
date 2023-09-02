@@ -237,28 +237,28 @@ def run_all_causal_discovery_methods(
         reward_causal_discovery_dataset)
 
     # Direct LiNGAM
-    run_causal_discovery_method(
-        env,
-        DirectLiNGAM(),
-        "DirectLiNGAM",
-        causal_discovery_dataset,
-        reward_causal_discovery_dataset)
+    # run_causal_discovery_method(
+    #     env,
+    #     DirectLiNGAM(),
+    #     "DirectLiNGAM",
+    #     causal_discovery_dataset,
+    #     reward_causal_discovery_dataset)
 
-    # NOTEARS
-    run_causal_discovery_method(
-        env,
-        NOTEARS(),
-        "NOTEARS",
-        causal_discovery_dataset,
-        reward_causal_discovery_dataset)
+    # # NOTEARS
+    # run_causal_discovery_method(
+    #     env,
+    #     NOTEARS(),
+    #     "NOTEARS",
+    #     causal_discovery_dataset,
+    #     reward_causal_discovery_dataset)
 
-    # RL
-    run_causal_discovery_method(
-        env,
-        RL(),
-        "RL",
-        causal_discovery_dataset,
-        reward_causal_discovery_dataset)
+    # # RL
+    # run_causal_discovery_method(
+    #     env,
+    #     RL(),
+    #     "RL",
+    #     causal_discovery_dataset,
+    #     reward_causal_discovery_dataset)
 
 
 def run_causal_discovery(args, iter):
@@ -266,13 +266,12 @@ def run_causal_discovery(args, iter):
     rl_agent = get_rl_algorithm(args, env)
 
     # Train agent from scratch or load
-    _, reward_causal_discovery_dataset = rl_agent.train()
-    causal_discovery_dataset = []
+    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
 
     # Generate datasets ##
     if len(causal_discovery_dataset) < 500000:
         num_datapoints = 500000 - len(causal_discovery_dataset)
-        causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_random_test_data(num_datapoints, use_sum_rewards=True)
+        causal_discovery_dataset_extended, reward_causal_discovery_dataset_extended = rl_agent.generate_test_data_for_causal_discovery(num_datapoints, use_sum_rewards=True)
         print(causal_discovery_dataset.shape)
         print(reward_causal_discovery_dataset.shape)
         print(causal_discovery_dataset_extended.shape)
@@ -338,6 +337,7 @@ def run_causal_discovery(args, iter):
 
 
 def run_scm_training(args):
+    total_datapoints = 100000
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
@@ -375,30 +375,52 @@ def run_scm_training(args):
     feature_scm_test_data = None
     reward_scm_test_data = None
 
+    scm_dataset = np.empty(causal_discovery_dataset.shape)
+    reward_scm_dataset = np.empty(reward_causal_discovery_dataset.shape)
+
+    ## Generate random data for SCM model training
+    if len(scm_dataset) < total_datapoints:
+        num_datapoints = total_datapoints - len(scm_dataset)
+        scm_dataset_extended, reward_scm_dataset_extended = rl_agent.generate_test_data_for_scm_training(num_datapoints, use_sum_rewards=True)
+        print(scm_dataset.shape)
+        print(reward_scm_dataset.shape)
+        print(scm_dataset_extended.shape)
+        print(reward_scm_dataset_extended.shape)
+        scm_dataset = np.append(
+            scm_dataset, scm_dataset_extended, axis=0)
+        reward_scm_dataset = np.append(
+            reward_scm_dataset,
+            reward_scm_dataset_extended, 
+            axis=0
+        )
+
+    scm_dataset = scm_dataset[:total_datapoints]
+    reward_scm_dataset = reward_scm_dataset[:total_datapoints]
+
     ## Train structural causal model ##
-    if env.name == "starcraft":
-        rnd_indices = np.random.choice(len(causal_discovery_dataset), 20000)
-        feature_scm_training_data = causal_discovery_dataset[rnd_indices[:10000]]
-        feature_scm_test_data = causal_discovery_dataset[rnd_indices[10000:]]
+    # if env.name == "starcraft":
+    #     rnd_indices = np.random.choice(len(causal_discovery_dataset), 20000)
+    #     feature_scm_training_data = causal_discovery_dataset[rnd_indices[:10000]]
+    #     feature_scm_test_data = causal_discovery_dataset[rnd_indices[10000:]]
 
-        rnd_indices = np.random.choice(
-            len(reward_causal_discovery_dataset), 20000)
-        reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices[:10000]]
-        reward_scm_test_data = reward_causal_discovery_dataset[rnd_indices[10000:]]
-    else:
-        # Reduce dataset and randomise to reduce overfitting
-        rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
-        feature_scm_training_data = causal_discovery_dataset[rnd_indices]
+    #     rnd_indices = np.random.choice(
+    #         len(reward_causal_discovery_dataset), 20000)
+    #     reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices[:10000]]
+    #     reward_scm_test_data = reward_causal_discovery_dataset[rnd_indices[10000:]]
+    # else:
+    #     # Reduce dataset and randomise to reduce overfitting
+    #     rnd_indices = np.random.choice(len(causal_discovery_dataset), 10000)
+    #     feature_scm_training_data = causal_discovery_dataset[rnd_indices]
 
-        rnd_indices = np.random.choice(
-            len(reward_causal_discovery_dataset), 10000)
-        reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
+    #     rnd_indices = np.random.choice(
+    #         len(reward_causal_discovery_dataset), 10000)
+    #     reward_scm_training_data = reward_causal_discovery_dataset[rnd_indices]
 
     # SCMs using true DAG
     scm = StructuralCausalModel(
         env,
         rl_agent,
-        feature_scm_training_data,
+        scm_dataset,
         nx.from_numpy_matrix(env.true_dag, create_using=nx.MultiDiGraph()),
         uses_true_dag=True,
     )
@@ -411,7 +433,7 @@ def run_scm_training(args):
     reward_scm = StructuralCausalModel(
         env,
         rl_agent,
-        reward_scm_training_data,
+        reward_scm_dataset,
         nx.from_numpy_matrix(
             env.reward_true_dag,
             create_using=nx.MultiDiGraph()),
@@ -453,7 +475,7 @@ def run_scm_training(args):
     scm = StructuralCausalModel(
         env,
         rl_agent,
-        feature_scm_training_data,
+        scm_dataset,
         feature_causal_graph,
         uses_true_dag=False,
     )
@@ -466,7 +488,7 @@ def run_scm_training(args):
     reward_scm = StructuralCausalModel(
         env,
         rl_agent,
-        reward_scm_training_data,
+        reward_scm_dataset,
         reward_causal_graph,
         is_reward_scm=True,
         uses_true_dag=False,
@@ -617,7 +639,7 @@ def main(args):
     run_scm_training(args)
 
     # Generate explanations
-    # run_explanation_generation()
+    run_explanation_generation()
 
 
 if __name__ == '__main__':
