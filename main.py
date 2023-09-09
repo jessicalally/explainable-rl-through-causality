@@ -11,7 +11,7 @@ import dill as pickle
 from random import choice
 from rl_algorithms.SARSA import SARSA
 from rl_algorithms.policy_gradient import PolicyGradient
-from rl_algorithms.DQN import DQN
+from rl_algorithms.DQN2 import DQN
 from rl_algorithms.DDQN import DDQN
 from rl_algorithms.A2C import A2C
 from structural_causal_model import StructuralCausalModel
@@ -56,10 +56,7 @@ def get_rl_algorithm(args, env):
     if args.rl == "pg":
         return PolicyGradient(env)
     elif args.rl == "dqn":
-        agent = DQN(env.action_space, env.state_space)
-        agent.model.load_weights("output/trained_rl_agents/mountaincar_dqn.h5")
-
-        return agent
+        return DQN(env)
     elif args.rl == "ddqn":
         if args.env == "cartpole":
             # Since the default hyperparameters are tuned to Lunar Lander
@@ -337,7 +334,7 @@ def run_causal_discovery(args, iter):
 
 
 def run_scm_training(args):
-    total_datapoints = 100000
+    total_datapoints = 10000
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
@@ -377,22 +374,7 @@ def run_scm_training(args):
 
     scm_dataset = np.empty(causal_discovery_dataset.shape)
     reward_scm_dataset = np.empty(reward_causal_discovery_dataset.shape)
-
-    ## Generate random data for SCM model training
-    if len(scm_dataset) < total_datapoints:
-        num_datapoints = total_datapoints - len(scm_dataset)
-        scm_dataset_extended, reward_scm_dataset_extended = rl_agent.generate_test_data_for_scm_training(num_datapoints, use_sum_rewards=True)
-        print(scm_dataset.shape)
-        print(reward_scm_dataset.shape)
-        print(scm_dataset_extended.shape)
-        print(reward_scm_dataset_extended.shape)
-        scm_dataset = np.append(
-            scm_dataset, scm_dataset_extended, axis=0)
-        reward_scm_dataset = np.append(
-            reward_scm_dataset,
-            reward_scm_dataset_extended, 
-            axis=0
-        )
+    scm_dataset, reward_scm_dataset = rl_agent.generate_test_data_for_scm_training(total_datapoints, use_sum_rewards=True)
 
     scm_dataset = scm_dataset[:total_datapoints]
     reward_scm_dataset = reward_scm_dataset[:total_datapoints]
@@ -543,7 +525,7 @@ def scm_evaluation(
         else:
             num_datapoints = 10000
 
-            test_data, reward_test_data = rl_agent.generate_random_test_data(
+            test_data, reward_test_data = rl_agent.generate_test_data_for_scm_training(
                 num_datapoints, use_sum_rewards=True)
             print(test_data.shape)
             rnd_indices = np.random.choice(len(test_data), 2500)
