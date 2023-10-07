@@ -292,7 +292,7 @@ class SARSA(RLAgent):
     # Methods needed for estimating feature importance
 
     def get_q_values(self, state):
-        return self.Q[state]
+        return self.Q[self.env.encode(*state)]
 
     def get_optimal_action(self, state):
         policy = self._generate_deterministic_policy()

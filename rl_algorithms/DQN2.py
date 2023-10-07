@@ -41,7 +41,7 @@ class DQN(RLAgent):
             epsilon=1.0,
             epsilon_decay=0.99,
             batch_size=32,
-            reward_threshold=100):
+            reward_threshold=-110):
         self.name = "dqn"
 
         # Environment
@@ -65,6 +65,7 @@ class DQN(RLAgent):
         self.buffer_size = 100000
         self.replay_buffer = deque(maxlen=self.buffer_size)
         self.min_replay_buffer_size = 1000
+        self.reward_threshold = reward_threshold
 
     def _choose_action_epsilon_greedy(self, state):
         if np.random.random() > self.epsilon:
@@ -119,6 +120,8 @@ class DQN(RLAgent):
                 next_state, reward, terminated, truncated, _ = self.env.step(
                     action)
                 
+                score += reward
+
                 if (terminated or truncated) and e < 200:
                     # Increase reward on win to encourage convergence, as DQN
                     # is an unstable algorithm
@@ -127,8 +130,6 @@ class DQN(RLAgent):
                     # Reward is proportional to the position of the car
                     reward = 5*abs(next_state[0] - state[0]) + 3*abs(state[1])
 
-                score += reward
-                
                 self.replay_buffer.append((
                     state, action, reward, next_state, terminated or truncated))
 
@@ -154,9 +155,13 @@ class DQN(RLAgent):
 
             max_score = max(max_score, score)
 
-            avg_score = np.mean(scores[max(0, e - 100):(e + 1)])
+            avg_score = np.mean(scores[max(0, e - 10):(e + 1)])
             print("episode: {}/{}, score: {}, avg score: {}".format(e,
                   episodes, score, avg_score))
+
+            if avg_score > self.reward_threshold:
+                self.agent.model.save_weights("solved_agent.h5")
+                break
 
         print('Finished DQN Algorithm...')
 

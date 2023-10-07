@@ -2,7 +2,7 @@
 
 OLDIFS="IFS"
 IFS=','
-for i in "starcraft","a2c" "cartpole","ddqn" "lunarlander","ddqn" "taxi","sarsa" "mountaincar","dqn"
+for i in "cartpole","ddqn" "lunarlander","ddqn" "mountaincar","dqn" "taxi","sarsa"
 do
     set -- $i
     echo $1 and $2

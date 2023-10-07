@@ -12,6 +12,7 @@ from random import choice
 from rl_algorithms.SARSA import SARSA
 from rl_algorithms.policy_gradient import PolicyGradient
 from rl_algorithms.DQN2 import DQN
+from rl_algorithms.DQN import DQN as DQNPretrained
 from rl_algorithms.DDQN import DDQN
 from rl_algorithms.A2C import A2C
 from structural_causal_model import StructuralCausalModel
@@ -157,18 +158,19 @@ def run_causal_discovery_method(
     print(causal_matrix_with_assumptions)
     print(met)
     print(f"elapsed time {et - st}")
-
-    print("reward causal discovery")
-    forbidden_edges, required_edges = get_known_edges(
-        env, causal_matrix_with_assumptions)
-    st = time.process_time()
-    learned_reward_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(
-        reward_causal_discovery_dataset, method, env, forbidden_edges, required_edges, env.reward_true_dag)
-    et = time.process_time()
-    print(causal_matrix_with_assumptions)
-    print(met)
-    print(f"elapsed time {et - st}")
-
+    if method_name != "RL":
+        print("reward causal discovery")
+        forbidden_edges, required_edges = get_known_edges(
+            env, causal_matrix_with_assumptions)
+        st = time.process_time()
+        learned_reward_causal_graph, met, causal_matrix_with_assumptions = causal_discovery(
+            reward_causal_discovery_dataset, method, env, forbidden_edges, required_edges, env.reward_true_dag)
+        et = time.process_time()
+        print(causal_matrix_with_assumptions)
+        print(met)
+        print(f"elapsed time {et - st}")
+    else:
+        learned_reward_causal_graph = None
     return learned_feature_causal_graph, learned_reward_causal_graph
 
 
@@ -234,37 +236,52 @@ def run_all_causal_discovery_methods(
         reward_causal_discovery_dataset)
 
     # Direct LiNGAM
-    # run_causal_discovery_method(
-    #     env,
-    #     DirectLiNGAM(),
-    #     "DirectLiNGAM",
-    #     causal_discovery_dataset,
-    #     reward_causal_discovery_dataset)
+    run_causal_discovery_method(
+        env,
+        DirectLiNGAM(),
+        "DirectLiNGAM",
+        causal_discovery_dataset,
+        reward_causal_discovery_dataset)
 
-    # # NOTEARS
-    # run_causal_discovery_method(
-    #     env,
-    #     NOTEARS(),
-    #     "NOTEARS",
-    #     causal_discovery_dataset,
-    #     reward_causal_discovery_dataset)
+    # NOTEARS
+    run_causal_discovery_method(
+        env,
+        NOTEARS(),
+        "NOTEARS",
+        causal_discovery_dataset,
+        reward_causal_discovery_dataset)
 
-    # # RL
-    # run_causal_discovery_method(
-    #     env,
-    #     RL(),
-    #     "RL",
-    #     causal_discovery_dataset,
-    #     reward_causal_discovery_dataset)
+    # RL
+    #run_causal_discovery_method(
+    #    env,
+    #    RL(),
+    #    "RL",
+    #    causal_discovery_dataset,
+    #    reward_causal_discovery_dataset)
 
-
-def run_causal_discovery(args, iter):
+def run_causal_discovery(args, iter=0):
+    print(f"running causal discovery iter {iter}");
     env = get_environment(args)
-    rl_agent = get_rl_algorithm(args, env)
 
-    # Train agent from scratch or load
-    causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
+    if env.name == "mountaincar":
+        # The DQN algorithm used for mountaincar can be quite unstable.
+        # Because of this, it is sometimes easier to use pretrained models instead.
+        # To train an agent, uncomment the if-branch of this if-statement.
+        rl_agent = DQNPretrained(env, env.action_space, env.state_space)
+        rl_agent.model.load_weights(f"output/trained_rl_agents/mountaincar_dqn_{iter}.h5")
+        #causal_discovery_dataset = np.empty((0, 5))
+        #reward_causal_discovery_dataset = np.empty((0, 3))
+        with open('temp-transitions.txt','r') as f:
+            causal_discovery_dataset = np.loadtxt(f)[iter*500000:(iter+1)*500000,:]
+        with open('temp-rewards.txt','r') as f:
+            reward_causal_discovery_dataset = np.loadtxt(f)[iter*500000:(iter+1)*500000,:]
+        print(causal_discovery_dataset[-1, :])
+        print(f"running causal discovery iter {iter}");
+    else:
+        rl_agent = get_rl_algorithm(args, env)
 
+        # Train agent from scratch
+        causal_discovery_dataset, reward_causal_discovery_dataset = rl_agent.train()
     # Generate datasets ##
     if len(causal_discovery_dataset) < 500000:
         num_datapoints = 500000 - len(causal_discovery_dataset)
@@ -322,18 +339,13 @@ def run_causal_discovery(args, iter):
         with open(reward_dataset_path, 'rb') as dataset_file:
             reward_causal_discovery_dataset = pickle.load(dataset_file)
 
-        if env.name == "mountaincar":
-            causal_discovery_dataset = np.array(causal_discovery_dataset)
-            reward_causal_discovery_dataset = np.array(
-                reward_causal_discovery_dataset)
-
-    run_all_causal_discovery_methods(
-        env,
-        causal_discovery_dataset,
-        reward_causal_discovery_dataset)
+    #run_all_causal_discovery_methods(
+    #    env,
+    #    causal_discovery_dataset,
+    #    reward_causal_discovery_dataset)
 
 
-def run_scm_training(args):
+def run_scm_training(args, iter=0):
     total_datapoints = 10000
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
@@ -343,17 +355,28 @@ def run_scm_training(args):
             'starcraft_causal_discovery_adjusted.csv', delimiter=',')
         reward_causal_discovery_dataset = np.genfromtxt(
             'starcraft_reward_causal_discovery.csv', delimiter=',')
+    elif env.name == "mountaincar":
+        # The DQN algorithm used for mountaincar can be quite unstable.
+        # Because of this, it is sometimes easier to use pretrained models instead.
+        # To train an agent, uncomment the if-branch of this if-statement.
+        rl_agent = DQNPretrained(env, env.action_space, env.state_space)
+        rl_agent.model.load_weights(f"output/trained_rl_agents/mountaincar_dqn_{iter}.h5")
+        
+        with open('temp-transitions.txt','r') as f:
+            causal_discovery_dataset = np.loadtxt(f)[iter*500000:(iter+1)*500000,:]
+        with open('temp-rewards.txt','r') as f:
+            reward_causal_discovery_dataset = np.loadtxt(f)[iter*500000:(iter+1)*500000,:]
     else:
         if env.name != "mountaincar":
-            rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+            rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}_{iter}.pickle"
             os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
             with open(rl_agent_path, 'rb') as rl_agent_file:
                 rl_agent = pickle.load(rl_agent_file)
 
-        dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+        dataset_path = f"output/causal_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
         os.makedirs(os.path.dirname(dataset_path), exist_ok=True)
-        reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}.pickle"
+        reward_dataset_path = f"output/reward_discovery_dataset/{env.name}_{rl_agent.name}_{iter}.pickle"
         os.makedirs(os.path.dirname(reward_dataset_path), exist_ok=True)
 
         with open(dataset_path, 'rb') as dataset_file:
@@ -361,11 +384,6 @@ def run_scm_training(args):
 
         with open(reward_dataset_path, 'rb') as dataset_file:
             reward_causal_discovery_dataset = pickle.load(dataset_file)
-
-        if env.name == "mountaincar":
-            causal_discovery_dataset = np.array(causal_discovery_dataset)
-            reward_causal_discovery_dataset = np.array(
-                reward_causal_discovery_dataset)
 
     feature_causal_graph, reward_causal_graph = run_causal_discovery_optimal_methods(
         env, causal_discovery_dataset, reward_causal_discovery_dataset)
@@ -405,6 +423,7 @@ def run_scm_training(args):
         scm_dataset,
         nx.from_numpy_matrix(env.true_dag, create_using=nx.MultiDiGraph()),
         uses_true_dag=True,
+        uses_nn_regressor=True
     )
 
     st = time.process_time()
@@ -420,31 +439,33 @@ def run_scm_training(args):
             env.reward_true_dag,
             create_using=nx.MultiDiGraph()),
         is_reward_scm=True,
-        uses_true_dag=True)
+        uses_true_dag=True,
+        uses_nn_regressor=True)
 
     st = time.process_time()
     reward_scm.train()
     et = time.process_time()
     print(f"reward scm elapsed time {et - st}")
-
-    scm_path = f"output/scm/true_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    
+    scm_path = f"output/scm/true_dag/feature/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(scm_path), exist_ok=True)
 
-    reward_scm_path = f"output/scm/true_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    reward_scm_path = f"output/scm/true_dag/reward/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
-
+    
     with open(scm_path, 'wb') as f:
         pickle.dump(scm, f)
 
     with open(reward_scm_path, 'wb') as f:
         pickle.dump(reward_scm, f)
-
+    
     with open(scm_path, 'rb') as f:
         scm = pickle.load(f)
 
     with open(reward_scm_path, 'rb') as f:
         reward_scm = pickle.load(f)
-
+    feature_scm_test_data = None
+    reward_scm_test_data = None
     scm_evaluation(
         env,
         rl_agent,
@@ -452,7 +473,7 @@ def run_scm_training(args):
         reward_scm,
         feature_scm_test_data,
         reward_scm_test_data)
-
+    
     # SCMs using learned DAG
     scm = StructuralCausalModel(
         env,
@@ -460,6 +481,7 @@ def run_scm_training(args):
         scm_dataset,
         feature_causal_graph,
         uses_true_dag=False,
+        uses_nn_regressor=True,
     )
 
     st = time.process_time()
@@ -474,25 +496,26 @@ def run_scm_training(args):
         reward_causal_graph,
         is_reward_scm=True,
         uses_true_dag=False,
+        uses_nn_regressor=True
     )
 
     st = time.process_time()
     reward_scm.train()
     et = time.process_time()
     print(f"reward scm elapsed time {et - st}")
-
-    scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    
+    scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(scm_path), exist_ok=True)
 
-    reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
-
+    
     with open(scm_path, 'wb') as f:
         pickle.dump(scm, f)
 
     with open(reward_scm_path, 'wb') as f:
         pickle.dump(reward_scm, f)
-
+    
     with open(scm_path, 'rb') as f:
         scm = pickle.load(f)
 
@@ -527,6 +550,7 @@ def scm_evaluation(
 
             test_data, reward_test_data = rl_agent.generate_test_data_for_scm_training(
                 num_datapoints, use_sum_rewards=True)
+            print(test_data)
             print(test_data.shape)
             rnd_indices = np.random.choice(len(test_data), 2500)
             test_data = test_data[rnd_indices]
@@ -543,21 +567,21 @@ def scm_evaluation(
     print(f"avg nrmse = {avg_nrmse}")
 
 
-def run_explanation_generation():
+def run_explanation_generation(iter=0):
     env = get_environment(args)
     rl_agent = get_rl_algorithm(args, env)
 
     if env.name != "mountaincar" and env.name != "starcraft":
-        rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}.pickle"
+        rl_agent_path = f"output/trained_rl_agents/{env.name}_{rl_agent.name}_{iter}.pickle"
         os.makedirs(os.path.dirname(rl_agent_path), exist_ok=True)
 
         with open(rl_agent_path, 'rb') as rl_agent_file:
             rl_agent = pickle.load(rl_agent_file)
 
-    scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}.pickle"
+    scm_path = f"output/scm/learned_dag/feature/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(scm_path), exist_ok=True)
 
-    reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}.pickle"
+    reward_scm_path = f"output/scm/learned_dag/reward/{env.name}_{rl_agent.name}_{iter}.pickle"
     os.makedirs(os.path.dirname(reward_scm_path), exist_ok=True)
 
     with open(scm_path, 'rb') as f:
@@ -591,6 +615,7 @@ def run_explanation_generation():
     explanation_generator = ExplanationGenerator(
         env, scm, reward_scm, rl_agent)
     for i in range(10):
+        print(f"iter {i}")
         if env.name == "taxi":
             pertubation = 1.0
         else:
@@ -602,14 +627,14 @@ def run_explanation_generation():
             [i for i in range(env.action_space) if i != example_action])
         why_explanation = explanation_generator.generate_why_explanation(
             example_state, example_action, pertubation)
-        why_explanations.add(why_explanation)
+        # why_explanations.add(why_explanation)
         print(f'Why {env.actions[example_action]}?\n {why_explanation}')
 
         why_not_explanation = explanation_generator.generate_why_not_explanation(
             example_state, example_action, example_counter_action, pertubation)
         print(
             f'Why not {env.actions[example_counter_action]}?\n {why_not_explanation}')
-        why_not_explanations.add(why_not_explanation)
+        # why_not_explanations.add(why_not_explanation)
 
 
 def main(args):
@@ -617,11 +642,11 @@ def main(args):
     for i in range(0, 1):
         run_causal_discovery(args, i)
 
-    # Run SCM training
-    run_scm_training(args)
+        # Run SCM training
+        run_scm_training(args, i)
 
-    # Generate explanations
-    run_explanation_generation()
+        # Generate explanations
+        run_explanation_generation(i)
 
 
 if __name__ == '__main__':

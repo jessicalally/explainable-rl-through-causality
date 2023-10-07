@@ -139,7 +139,7 @@ class DDQN(RLAgent):
 
         self.epsilon = max(self.epsilon * self.epsilon_decay, self.min_epsilon)
 
-    def train(self, episodes=4000):
+    def train(self, episodes=10000):
         print('Performing DDQN algorithm...')
         reward_test_data = []
         transition_test_data = []
@@ -194,6 +194,37 @@ class DDQN(RLAgent):
                 break
 
         print('Finished DDQN Algorithm...')
+
+        return np.array(transition_test_data), np.array(reward_test_data)
+    
+    def generate_test_data_for_scm_training(
+        self, num_datapoints, use_sum_rewards=False):
+        
+        transition_test_data = []
+        reward_test_data = []
+
+        print('Generating test data for DDQN algorithm...')
+
+        while len(transition_test_data) < num_datapoints:
+            terminated = False
+            truncated = False
+            state, _ = self.env.reset()
+
+            while not (terminated or truncated):
+                action = random.randint(0, self.action_space - 1)
+                next_state, reward, terminated, truncated, _ = self.env.step(action)
+
+                if use_sum_rewards and terminated:
+                    reward_test_data.append(
+                        np.concatenate((next_state, np.array(0)), axis=None)
+                    )
+                else:
+                    reward_test_data.append(np.concatenate(
+                        (next_state, np.array(reward)), axis=None))
+                   
+                    transition_test_data.append(np.concatenate((state, np.array(action), next_state), axis=None))
+
+                state = next_state
 
         return np.array(transition_test_data), np.array(reward_test_data)
 
